@@ -16,3 +16,5 @@ saves/
 
 # Temporary files
 temp-model
+
+.env
