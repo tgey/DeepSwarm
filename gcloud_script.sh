@@ -1,7 +1,7 @@
 #!/bin/bash
 
-INSTANCE_NAME=$(grep GCLOUD_INSTANCE_NAME .env | cut -d '=' -f2)
-ZONE_NAME=$(grep GCLOUD_INSTANCE_ZONE .env | cut -d '=' -f2)
+INSTANCE_NAME=$(grep GCLOUD_INSTANCE_NAME .env.dev | cut -d '=' -f2)
+ZONE_NAME=$(grep GCLOUD_INSTANCE_ZONE .env.dev | cut -d '=' -f2)
 
 
 COMMAND="python3 $1.py -s $2"
@@ -12,7 +12,6 @@ echo $INSTANCE_NAME
 echo $ZONE_NAME
 echo "Dataset: $1 and setting file: $2"
 
-exit
 make clean
 echo "LOCAL: folders cleaned"
 
