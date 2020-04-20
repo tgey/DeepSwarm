@@ -27,8 +27,9 @@ class NeighbourNode:
 class Node:
     """Class responsible for representing Node."""
 
-    def __init__(self, name):
+    def __init__(self, name, depth):
         self.name = name
+        self.depth = depth
         self.neighbours = []
         self.is_expanded = False
         self.type = nodes[self.name]['type']
@@ -37,7 +38,7 @@ class Node:
         self.select_random_attributes()
 
     @classmethod
-    def create_using_type(cls, type):
+    def create_using_type(cls, type, depth):
         """Create Node's instance using given type.
 
         Args:
@@ -48,7 +49,7 @@ class Node:
 
         for node in nodes:
             if nodes[node]['type'] == type:
-                return cls(node)
+                return cls(node, depth)
         raise Exception('Type does not exist: %s' % str(type))
 
     def setup_attributes(self):
@@ -124,4 +125,4 @@ class Node:
 
     def __str__(self):
         attributes = ', '.join([a.name + ":" + str(getattr(self, a.name)) for a in self.attributes])
-        return self.name + "(" + attributes + ")"
+        return self.name + "(" + attributes + ")" + " depth: " + str(self.depth)

@@ -35,7 +35,7 @@ class ACO:
             Log.header("RESUMING ACO SEARCH", type="GREEN")
 
         while self.graph.current_depth <= cfg['max_depth']:
-            Log.header("Current search depth is %i" % self.graph.current_depth, type="GREEN")
+            # Log.header("Current search depth is %i" % self.graph.current_depth, type="GREEN")
             ants = self.generate_ants()
 
             # Sort ants using user selected metric
@@ -283,7 +283,7 @@ class Graph:
     def __init__(self, current_depth=0):
         self.topology = []
         self.current_depth = current_depth
-        self.input_node = self.get_node(Node.create_using_type('Input'), current_depth)
+        self.input_node = self.get_node(Node.create_using_type('Input', current_depth), current_depth)
         self.increase_depth()
 
     def get_node(self, node, depth):
@@ -294,6 +294,8 @@ class Graph:
             node: Node which should be found in the graph.
             depth: depth at which the node should be stored.
         """
+
+        node.depth = depth
 
         # If we are trying to insert the node into a not existing layer, we pad the
         # topology by adding empty dictionaries, until the required depth is reached
@@ -321,9 +323,10 @@ class Graph:
 
         current_node = self.input_node
         path = [current_node.create_deepcopy()]
-        for depth in range(self.current_depth):
+        # for depth in range(self.current_depth): # TODO check while condition efficiency before clean
+        while current_node.depth < self.current_depth: 
             # If the node doesn't have any neighbours stop expanding the path
-            if not self.has_neighbours(current_node, depth):
+            if not self.has_neighbours(current_node, current_node.depth):
                 break
 
             # Select node using given rule
@@ -334,7 +337,7 @@ class Graph:
         completed_path = self.complete_path(path)
         return completed_path
 
-    def has_neighbours(self, node, depth):
+    def has_neighbours(self, current_node, depth):
         """Checks if the node has any neighbours.
 
         Args:
@@ -344,17 +347,32 @@ class Graph:
         Returns:
             a boolean value which indicates if the node has any neighbours.
         """
-
+        nodes = []
+        nodes.append(current_node)
+        
         # Expand only if it hasn't been expanded
-        if node.is_expanded is False:
-            available_transitions = node.available_transitions
-            for (transition_name, heuristic_value) in available_transitions:
-                neighbour_node = self.get_node(Node(transition_name), depth + 1)
-                node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
-            node.is_expanded = True
-
+        
+        if current_node.is_expanded is False:
+            print (current_node, depth)
+            for residual_depth in range(depth + 1, depth + 3): # TODO replace depth + 3 with self.current_depth for DenseNet
+                temp_nodes = []
+                for node in nodes:
+                    if type(node) == NeighbourNode:
+                        node = node.node
+                    available_transitions = node.available_transitions
+                    for (transition_name, heuristic_value) in available_transitions:
+                        neighbour_node = self.get_node(Node(transition_name, residual_depth), residual_depth)
+                        node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
+                        if current_node != node :
+                            current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
+                    temp_nodes.extend([n.node for n in node.neighbours])
+                nodes = temp_nodes
+            current_node.is_expanded = True
+            for n in current_node.neighbours:
+                print (n.node)
+        # TODO add debug neighbours
         # Return value indicating if the node has neighbours after being expanded
-        return len(node.neighbours) > 0
+        return len(current_node.neighbours) > 0
 
     def complete_path(self, path):
         """Completes the path if it is not fully completed (i.e. missing OutputNode).
@@ -372,9 +390,11 @@ class Graph:
         # of the best path (as it's impossible to close path automatically when it's so short)
         # this would result in bias pheromone received by these nodes during later iterations
         if path[-1].name in cfg['spatial_nodes']:
-            path.append(self.get_node(Node.create_using_type('Flatten'), len(path)))
+            print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1), len(path)))
         if path[-1].name in cfg['flat_nodes']:
-            path.append(self.get_node(Node.create_using_type('Output'), len(path)))
+            print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
+            path.append(self.get_node(Node.create_using_type('Output', path[-1].depth + 1), len(path)))
         return path
 
     def show_pheromone(self):

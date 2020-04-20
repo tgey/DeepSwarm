@@ -231,6 +231,9 @@ class TFKerasBackend(BaseBackend):
             })
             return tf.keras.layers.Dense(**parameters)
 
+        if node.type == "Skip":
+            return tf.keras.layers.Lambda(lambda x: x)
+
         raise Exception('Not handled node type: %s' % str(node))
 
     def map_activation(self, activation):

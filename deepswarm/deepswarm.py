@@ -6,7 +6,6 @@ from .aco import ACO
 from .log import Log
 from .storage import Storage
 
-
 class DeepSwarm:
     """Class responsible for providing user facing interface."""
 
