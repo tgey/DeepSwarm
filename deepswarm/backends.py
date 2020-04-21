@@ -346,7 +346,7 @@ class TFKerasBackend(BaseBackend):
         return (loss, accuracy)
 
     def save_model(self, model, path):
-        model.save(path)
+        model.save(str(path))
         self.free_gpu()
 
     def load_model(self, path):
