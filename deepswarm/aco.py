@@ -35,7 +35,7 @@ class ACO:
             Log.header("RESUMING ACO SEARCH", type="GREEN")
 
         while self.graph.current_depth <= cfg['max_depth']:
-            # Log.header("Current search depth is %i" % self.graph.current_depth, type="GREEN")
+            Log.header("Current search depth is %i" % self.graph.current_depth, type="GREEN")
             ants = self.generate_ants()
 
             # Sort ants using user selected metric
@@ -56,6 +56,7 @@ class ACO:
             # Print pheromone information and increase the graph's depth
             self.graph.show_pheromone()
             self.graph.increase_depth()
+            self.graph.reset_nodes(self.graph.input_node)
 
             # Perform a backup
             self.storage.perform_backup()
@@ -276,14 +277,13 @@ class Ant:
             self.path_hash,
         )
 
-
 class Graph:
     """Class responsible for representing the graph."""
 
     def __init__(self, current_depth=0):
         self.topology = []
         self.current_depth = current_depth
-        self.input_node = self.get_node(Node.create_using_type('Input', current_depth), current_depth)
+        self.input_node = self.get_node(Node.create_using_type('Input', 0), 0)
         self.increase_depth()
 
     def get_node(self, node, depth):
@@ -328,7 +328,7 @@ class Graph:
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
                 break
-
+            # print("CURRENT_NODE: ", current_node)
             # Select node using given rule
             current_node = select_rule(current_node.neighbours)
             # Add only the copy of the node, so that original stays unmodified
@@ -353,8 +353,9 @@ class Graph:
         # Expand only if it hasn't been expanded
         
         if current_node.is_expanded is False:
-            print (current_node, depth)
-            for residual_depth in range(depth + 1, depth + 3): # TODO replace depth + 3 with self.current_depth for DenseNet
+            max_depth = self.current_depth + 1 if depth + 3 > self.current_depth else depth + 3
+            # print (depth + 2, self.current_depth, max_depth)
+            for residual_depth in range(depth + 1, max_depth ): # TODO replace depth + 3 with self.current_depth for DenseNet
                 temp_nodes = []
                 for node in nodes:
                     if type(node) == NeighbourNode:
@@ -362,17 +363,27 @@ class Graph:
                     available_transitions = node.available_transitions
                     for (transition_name, heuristic_value) in available_transitions:
                         neighbour_node = self.get_node(Node(transition_name, residual_depth), residual_depth)
-                        node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
                         if current_node != node :
-                            current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
+                            node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
+                        current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
                     temp_nodes.extend([n.node for n in node.neighbours])
                 nodes = temp_nodes
             current_node.is_expanded = True
-            for n in current_node.neighbours:
-                print (n.node)
-        # TODO add debug neighbours
+            # for n in current_node.neighbours:
+            #     print (str(current_node) + " HasNeighbour : " +  str(n.node))
+        
         # Return value indicating if the node has neighbours after being expanded
         return len(current_node.neighbours) > 0
+
+    def reset_nodes(self, node, residual_depth = 2):
+        nodes = [n.node for n in node.neighbours]
+        if not nodes:
+            return
+        for n in nodes:
+            self.reset_nodes(n)
+        if self.current_depth - node.depth <= residual_depth:
+            node.is_expanded = False
+            node.neighbours = [] # TODO do not delete and add all but add only new
 
     def complete_path(self, path):
         """Completes the path if it is not fully completed (i.e. missing OutputNode).
@@ -389,11 +400,10 @@ class Graph:
         # in the path, because during the first few iterations these nodes will always be part
         # of the best path (as it's impossible to close path automatically when it's so short)
         # this would result in bias pheromone received by these nodes during later iterations
+        # TODO correct depth 
         if path[-1].name in cfg['spatial_nodes']:
-            print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
             path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1), len(path)))
         if path[-1].name in cfg['flat_nodes']:
-            print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
             path.append(self.get_node(Node.create_using_type('Output', path[-1].depth + 1), len(path)))
         return path
 
