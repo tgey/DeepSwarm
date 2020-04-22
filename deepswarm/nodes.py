@@ -10,24 +10,14 @@ from . import cfg, nodes
 class NodeAttribute:
     """Class responsible for encapsulating Node's attribute."""
 
-    def __init__(self, name, options):
+    def __init__(self, name: str, options):
         self.name = name
         self.dict = {option: cfg['aco']['pheromone']['start'] for option in options}
-
-
-class NeighbourNode:
-    """Class responsible for encapsulating Node's neighbour."""
-
-    def __init__(self, node, heuristic, pheromone=cfg['aco']['pheromone']['start']):
-        self.node = node
-        self.heuristic = heuristic
-        self.pheromone = pheromone
-
 
 class Node:
     """Class responsible for representing Node."""
 
-    def __init__(self, name, depth):
+    def __init__(self, name: str, depth: int):
         self.name = name
         self.depth = depth
         self.neighbours = []
@@ -38,11 +28,12 @@ class Node:
         self.select_random_attributes()
 
     @classmethod
-    def create_using_type(cls, type, depth):
+    def create_using_type(cls, type: str, depth: int):
         """Create Node's instance using given type.
 
         Args:
             type (str): type defined in .yaml file.
+            depth (int): depth of the node in the graph
         Returns:
             Node's instance.
         """
@@ -126,3 +117,12 @@ class Node:
     def __str__(self):
         attributes = ', '.join([a.name + ":" + str(getattr(self, a.name)) for a in self.attributes])
         return self.name + "(" + attributes + ")" + " depth: " + str(self.depth)
+
+
+class NeighbourNode:
+    """Class responsible for encapsulating Node's neighbour."""
+
+    def __init__(self, node: Node, heuristic: float, pheromone: float = cfg['aco']['pheromone']['start']):
+        self.node = node
+        self.heuristic = heuristic
+        self.pheromone = pheromone

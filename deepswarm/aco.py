@@ -83,7 +83,7 @@ class ACO:
             self.update_pheromone(ant=ant, update_rule=self.local_update)
         return ants
 
-    def random_select(self, neighbours):
+    def random_select(self, neighbours: list):
         """Randomly selects one neighbour node and its attributes.
 
         Args:
@@ -96,7 +96,7 @@ class ACO:
         current_node.select_random_attributes()
         return current_node
 
-    def aco_select(self, neighbours):
+    def aco_select(self, neighbours: list):
         """Selects one neighbour node and its attributes using ACO selection rule.
 
         Args:
@@ -114,7 +114,7 @@ class ACO:
         current_node.select_custom_attributes(self.aco_select_rule)
         return current_node
 
-    def aco_select_rule(self, neighbours):
+    def aco_select_rule(self, neighbours: list):
         """Selects neigbour using ACO transition rule.
 
         Args:
@@ -195,14 +195,14 @@ class ACO:
             # Advance the current node
             current_node = neighbour.node
 
-    def local_update(self, old_value, cost):
+    def local_update(self, old_value: float, cost):
         """Performs local pheromone update."""
 
         decay = cfg['aco']['pheromone']['decay']
         pheromone_0 = cfg['aco']['pheromone']['start']
         return (1 - decay) * old_value + (decay * pheromone_0)
 
-    def global_update(self, old_value, cost):
+    def global_update(self, old_value: float , cost):
         """Performs global pheromone update."""
 
         # Calculate solution cost based on metrics
@@ -219,7 +219,7 @@ class ACO:
 class Ant:
     """Class responsible for representing the ant."""
 
-    def __init__(self, path=[]):
+    def __init__(self, path: list = []):
         self.path = path
         self.loss = math.inf
         self.accuracy = 0.0
@@ -279,13 +279,13 @@ class Ant:
 class Graph:
     """Class responsible for representing the graph."""
 
-    def __init__(self, current_depth=0):
+    def __init__(self, current_depth: int = 0):
         self.topology = []
         self.current_depth = current_depth
         self.input_node = self.get_node(Node.create_using_type('Input', 0))
         self.increase_depth()
 
-    def get_node(self, node):
+    def get_node(self, node: Node):
         """Tries to retrieve a given node from the graph. If the node does not
         exist then the node is inserted into the graph before being retrieved.
 
@@ -333,7 +333,7 @@ class Graph:
         completed_path = self.complete_path(path)
         return completed_path
 
-    def has_neighbours(self, current_node, depth):
+    def has_neighbours(self, current_node: Node, depth: int):
         """Checks if the node has any neighbours.
 
         Args:
@@ -371,7 +371,7 @@ class Graph:
         # Return value indicating if the node has neighbours after being expanded
         return len(current_node.neighbours) > 0
 
-    def reset_nodes(self, node, residual_depth = 2):
+    def reset_nodes(self, node: Node, residual_depth: int = 2):
         nodes = [n.node for n in node.neighbours]
         if not nodes:
             return
@@ -381,7 +381,7 @@ class Graph:
             node.is_expanded = False
             node.neighbours = [] # TODO do not delete and add all but add only new
 
-    def complete_path(self, path):
+    def complete_path(self, path: list):
         """Completes the path if it is not fully completed (i.e. missing OutputNode).
 
         Args:
