@@ -233,7 +233,6 @@ class Ant:
             backend: Backend object.
             storage: Storage object.
         """
-
         # Extract path information
         self.path_description, path_hashes = storage.hash_path(self.path)
         self.path_hash = path_hashes[-1]
@@ -283,27 +282,24 @@ class Graph:
     def __init__(self, current_depth=0):
         self.topology = []
         self.current_depth = current_depth
-        self.input_node = self.get_node(Node.create_using_type('Input', 0), 0)
+        self.input_node = self.get_node(Node.create_using_type('Input', 0))
         self.increase_depth()
 
-    def get_node(self, node, depth):
+    def get_node(self, node):
         """Tries to retrieve a given node from the graph. If the node does not
         exist then the node is inserted into the graph before being retrieved.
 
         Args:
             node: Node which should be found in the graph.
-            depth: depth at which the node should be stored.
         """
-
-        node.depth = depth
 
         # If we are trying to insert the node into a not existing layer, we pad the
         # topology by adding empty dictionaries, until the required depth is reached
-        while depth > (len(self.topology) - 1):
+        while node.depth > (len(self.topology) - 1):
             self.topology.append({})
 
         # If the node already exists return it, otherwise add it to the topology first
-        return self.topology[depth].setdefault(node.name, node)
+        return self.topology[node.depth].setdefault(node.name, node)
 
     def increase_depth(self):
         """Increases the depth of the graph."""
@@ -362,7 +358,7 @@ class Graph:
                         node = node.node
                     available_transitions = node.available_transitions
                     for (transition_name, heuristic_value) in available_transitions:
-                        neighbour_node = self.get_node(Node(transition_name, residual_depth), residual_depth)
+                        neighbour_node = self.get_node(Node(transition_name, residual_depth))
                         if current_node != node :
                             node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
                         current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
@@ -402,9 +398,9 @@ class Graph:
         # this would result in bias pheromone received by these nodes during later iterations
         # TODO correct depth 
         if path[-1].name in cfg['spatial_nodes']:
-            path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1), len(path)))
+            path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
         if path[-1].name in cfg['flat_nodes']:
-            path.append(self.get_node(Node.create_using_type('Output', path[-1].depth + 1), len(path)))
+            path.append(self.get_node(Node.create_using_type('Output', path[-1].depth + 1)))
         return path
 
     def show_pheromone(self):
