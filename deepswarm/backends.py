@@ -2,6 +2,11 @@
 # Licensed under MIT License
 
 import os
+import logging
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
+
 import tensorflow as tf
 import time
 
@@ -139,7 +144,6 @@ class TFKerasBackend(BaseBackend):
         # Convert each node to layer and then connect it to the previous layer
         for node in path[1:]:
             layer = self.create_layer(node)(layer)
-
         # Return generated model
         model = tf.keras.Model(inputs=input_layer, outputs=layer)
         self.compile_model(model)

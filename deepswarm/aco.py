@@ -7,7 +7,12 @@ import random
 from . import cfg, left_cost_is_better
 from .log import Log
 from .nodes import Node, NeighbourNode
+import tensorflow as tf
+import os
+import logging
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
 class ACO:
     """Class responsible for performing Ant Colony Optimization."""
@@ -233,6 +238,7 @@ class Ant:
             backend: Backend object.
             storage: Storage object.
         """
+        Log.debug([str(n) for n in self.path])
         # Extract path information
         self.path_description, path_hashes = storage.hash_path(self.path)
         self.path_hash = path_hashes[-1]
@@ -245,6 +251,13 @@ class Ant:
         else:
             # Re-use model
             new_model = existing_model
+
+
+        #debug layers shape
+        for i in range(len(self.path)):
+            layer = new_model.get_layer(index=i)
+            Log.debug(layer)
+            Log.debug(str(layer.input_shape) + " ---> " + str(layer.output_shape))
 
         # Train model
         new_model = backend.train_model(new_model)
@@ -396,8 +409,11 @@ class Graph:
         # in the path, because during the first few iterations these nodes will always be part
         # of the best path (as it's impossible to close path automatically when it's so short)
         # this would result in bias pheromone received by these nodes during later iterations
-        # TODO correct depth 
+        
         if path[-1].name in cfg['spatial_nodes']:
+            path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
+        if not any(node.type == "Flatten" for node in path): # TODO To confirm
+            Log.warning("Model without FlattenNode")
             path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
         if path[-1].name in cfg['flat_nodes']:
             path.append(self.get_node(Node.create_using_type('Output', path[-1].depth + 1)))
