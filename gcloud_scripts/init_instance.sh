@@ -7,4 +7,8 @@
 wget https://repo.anaconda.com/archive/Anaconda3-5.2.0-Linux-x86_64.sh && bash Anaconda3-5.2.0-Linux-x86_64.sh -bfp /usr/local
 pip install --upgrade pip
 pip install -r requirements-dev.txt
-pip install tensorflow-gpu==1.14.0
+sudo timedatectl set-timezone Europe/Paris
+
+#Enable bash script to run sudo commands without password
+sudo visudo
+#Add 'username ALL=(ALL) NOPASSWD:ALL', save and close the file
