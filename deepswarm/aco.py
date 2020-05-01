@@ -8,10 +8,11 @@ from . import cfg, left_cost_is_better
 from .log import Log
 from .nodes import Node, NeighbourNode
 import tensorflow as tf
+
 import os
 import logging
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+import time # TODO debug
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL # TODO Debug 
 logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
 class ACO:
@@ -61,10 +62,18 @@ class ACO:
             # Print pheromone information and increase the graph's depth
             self.graph.show_pheromone()
             self.graph.increase_depth()
-            self.graph.reset_nodes(self.graph.input_node)
 
             # Perform a backup
             self.storage.perform_backup()
+
+            # if (self.graph.current_depth % 3 == 0): # TODO debug
+            #     tic = time.perf_counter()
+            #     self.graph.count_nodes(self.graph.input_node)
+            #     Log.header("NB NODES for depth " + str(self.current_depth))
+            #     Log.debug(self.nodes_count)
+            #     toc = time.perf_counter()
+            #     print(f"Count nodes in {toc - tic:0.4f} seconds")
+        
         return self.best_ant
 
     def generate_ants(self):
@@ -238,7 +247,7 @@ class Ant:
             backend: Backend object.
             storage: Storage object.
         """
-        Log.debug([str(n) for n in self.path])
+        # Log.debug([str(n) for n in self.path]) # TODO debug
         # Extract path information
         self.path_description, path_hashes = storage.hash_path(self.path)
         self.path_hash = path_hashes[-1]
@@ -253,11 +262,12 @@ class Ant:
             new_model = existing_model
 
 
-        #debug layers shape
+        #TODO debug layers shape
+        layers = ""
         for i in range(len(self.path)):
             layer = new_model.get_layer(index=i)
-            Log.debug(layer)
-            Log.debug(str(layer.input_shape) + " ---> " + str(layer.output_shape))
+            layers += str(layer) + ": " + str(layer.input_shape) + " ---> " + str(layer.output_shape) + "\n"
+        Log.debug(layers)
 
         # Train model
         new_model = backend.train_model(new_model)
@@ -297,6 +307,7 @@ class Graph:
         self.current_depth = current_depth
         self.input_node = self.get_node(Node.create_using_type('Input', 0))
         self.increase_depth()
+        self.nodes_count = 0 # TODO debug
 
     def get_node(self, node: Node):
         """Tries to retrieve a given node from the graph. If the node does not
@@ -332,17 +343,18 @@ class Graph:
 
         current_node = self.input_node
         path = [current_node.create_deepcopy()]
-        # for depth in range(self.current_depth): # TODO check while condition efficiency before clean
+        # tic = time.perf_counter() # TODO debug
         while current_node.depth < self.current_depth: 
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
                 break
-            # print("CURRENT_NODE: ", current_node)
+            # print("CURRENT_NODE: ", current_node) # TODO debug
             # Select node using given rule
             current_node = select_rule(current_node.neighbours)
             # Add only the copy of the node, so that original stays unmodified
             path.append(current_node.create_deepcopy())
-
+        # toc = time.perf_counter() # TODO debug
+        # print(f"generate path in {toc - tic:0.4f} seconds") # TODO debug
         completed_path = self.complete_path(path)
         return completed_path
 
@@ -359,12 +371,16 @@ class Graph:
         nodes = []
         nodes.append(current_node)
         
-        # Expand only if it hasn't been expanded
-        
-        if current_node.is_expanded is False:
-            max_depth = self.current_depth + 1 if depth + 3 > self.current_depth else depth + 3
-            # print (depth + 2, self.current_depth, max_depth)
-            for residual_depth in range(depth + 1, max_depth ): # TODO replace depth + 3 with self.current_depth for DenseNet
+        # Expand only if it hasn't been expanded 
+        # TODO refacto doc
+        if  current_node.is_expanded is False or \
+            (self.current_depth - current_node.depth <= cfg['residual_depth'] and \
+                current_node.last_checked != self.current_depth):
+            current_node.neighbours = []
+            max_residual_depth = depth + 1 + cfg['residual_depth']
+            max_depth = self.current_depth + 1 if  max_residual_depth > self.current_depth else max_residual_depth
+            # print (max_residual_depth, self.current_depth, max_depth) # TODO debug
+            for residual_depth in range(depth + 1, max_depth):
                 temp_nodes = []
                 for node in nodes:
                     if type(node) == NeighbourNode:
@@ -377,22 +393,13 @@ class Graph:
                         current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
                     temp_nodes.extend([n.node for n in node.neighbours])
                 nodes = temp_nodes
+            current_node.last_checked = self.current_depth
             current_node.is_expanded = True
-            # for n in current_node.neighbours:
+            # for n in current_node.neighbours: # TODO debug
             #     print (str(current_node) + " HasNeighbour : " +  str(n.node))
         
         # Return value indicating if the node has neighbours after being expanded
         return len(current_node.neighbours) > 0
-
-    def reset_nodes(self, node: Node, residual_depth: int = 2):
-        nodes = [n.node for n in node.neighbours]
-        if not nodes:
-            return
-        for n in nodes:
-            self.reset_nodes(n)
-        if self.current_depth - node.depth <= residual_depth:
-            node.is_expanded = False
-            node.neighbours = [] # TODO do not delete and add all but add only new
 
     def complete_path(self, path: list):
         """Completes the path if it is not fully completed (i.e. missing OutputNode).
@@ -445,3 +452,15 @@ class Graph:
                 Log.header("Layer %d" % (idx + 1))
                 Log.info('\n'.join(info))
         Log.header("PHEROMONE END", type="RED")
+
+    def count_nodes(self, node): # TODO debug
+        nodes = [n.node for n in node.neighbours]
+        if not nodes:
+            self.nodes_count += 1
+            return
+        for n in nodes:
+            self.count_nodes(n)
+        self.nodes_count += 1
+
+    def reset_nodes_count(self): # TODO debug
+        self.nodes_count = 0

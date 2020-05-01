@@ -2,6 +2,7 @@ DeepSwarm:
     save_folder:
     metrics: accuracy
     max_depth: 20
+    residual_depth: 2
     reuse_patience: 1
 
     aco:
@@ -11,7 +12,7 @@ DeepSwarm:
             evaporation: 0.1
             verbose: False
         greediness: 0.5
-        ant_count: 16
+        ant_count: 8
 
     backend:
         epochs: 20

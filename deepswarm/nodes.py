@@ -22,6 +22,7 @@ class Node:
         self.depth = depth
         self.neighbours = []
         self.is_expanded = False
+        self.last_checked = depth
         self.type = nodes[self.name]['type']
         self.setup_attributes()
         self.setup_transitions()
