@@ -16,3 +16,11 @@ saves/
 
 # Temporary files
 temp-model
+nohup.out
+
+.env
+client_secrets.json
+credentials.txt
+
+examples/
+settings/
