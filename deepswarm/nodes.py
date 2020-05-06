@@ -26,7 +26,7 @@ class Node:
         self.setup_attributes()
         self.setup_transitions()
         self.select_random_attributes()
-        # TODO HIGH self.skip = False
+        self.skip = False
 
     @classmethod
     def create_using_type(cls, type: str, depth: int):

@@ -122,7 +122,15 @@ class ACO:
 
         # Transform a list of NeighbourNode objects to list of tuples
         # (Node, pheromone, heuristic)
-        tuple_neighbours = [(n.node, n.pheromone, n.heuristic) for n in neighbours]
+        tuple_neighbours = []
+        for n in neighbours:
+            # Log.debug(f'{n.node}, {n.pheromone}, {n.heuristic}') # TODO LOW debug
+            if n.node.skip == True:
+                n.pheuristic = n.heuristic * ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1)) # TODO HIGH benchmark the activation formula
+            else:
+                n.pheuristic = n.heuristic
+            # Log.debug(f'heuristic value: {n.pheuristic} for {n.node}') # TODO LOW debug
+            tuple_neighbours.append((n.node, n.pheromone, n.pheuristic))
         # Select node using ant colony selection rule
         current_node = self.aco_select_rule(tuple_neighbours)
         # Select custom attributes using ant colony selection rule
@@ -142,9 +150,7 @@ class ACO:
 
         probabilities = []
         denominator = 0.0
-
         # Calculate probability for each neighbour
-        # TODO High if node.skip == true : heuristic = heuristic * (self.graph.current_depth - 1 / cfg['max_depth'] - 1)
         for (_, pheromone, heuristic) in neighbours: # TODO MED if skip more than 1 layer, need to be optimized
             probability = pheromone * heuristic
             probabilities.append(probability)
@@ -348,7 +354,7 @@ class Graph:
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
                 break
-            # print("CURRENT_NODE: ", current_node) # TODO LOW debug
+            # Log.debug(f'CURRENT_NODE: {current_node}') # TODO LOW debug
             # Select node using given rule
             current_node = select_rule(current_node.neighbours)
             # Add only the copy of the node, so that original stays unmodified
@@ -393,11 +399,10 @@ class Graph:
                         if current_node != node :
                             node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
                         # TODO HIGH refacto for stochastic depth
-                        # neigbour = NeighbourNode(neighbour_node, heuristic_value)
-                        # if residual_depth > depth + 1:
-                        #   neighbour.node.skip = True
-                        # current_node.neighbours.append(neighbour)
-                        current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
+                        neighbour = NeighbourNode(neighbour_node, heuristic_value)
+                        if residual_depth > depth + 1:
+                          neighbour.node.skip = True
+                        current_node.neighbours.append(neighbour)
                     temp_nodes.extend([n.node for n in node.neighbours])
                 nodes = temp_nodes
 
