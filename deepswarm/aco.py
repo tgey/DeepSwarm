@@ -11,8 +11,9 @@ import tensorflow as tf
 
 import os
 import logging
-import time # TODO debug
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL # TODO Debug 
+
+import time # TODO LOW debug
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL # TODO LOW debug
 logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
 class ACO:
@@ -41,7 +42,7 @@ class ACO:
             Log.header("RESUMING ACO SEARCH", type="GREEN")
 
         while self.graph.current_depth <= cfg['max_depth']:
-            Log.header("Current search depth is %i" % self.graph.current_depth, type="GREEN")
+            Log.header(f'Current search depth is {self.graph.current_depth}' , type="GREEN")
             ants = self.generate_ants()
 
             # Sort ants using user selected metric
@@ -66,7 +67,7 @@ class ACO:
             # Perform a backup
             self.storage.perform_backup()
 
-            # if (self.graph.current_depth % 3 == 0): # TODO debug
+            # if (self.graph.current_depth % 3 == 0): # TODO LOW debug
             #     tic = time.perf_counter()
             #     self.graph.count_nodes(self.graph.input_node)
             #     Log.header("NB NODES for depth " + str(self.current_depth))
@@ -85,7 +86,7 @@ class ACO:
 
         ants = []
         for ant_number in range(cfg['aco']['ant_count']):
-            Log.header("GENERATING ANT %i" % (ant_number + 1))
+            Log.header(f'GENERATING ANT {ant_number + 1}')
             ant = Ant()
             # Generate ant's path using ACO selection rule
             ant.path = self.graph.generate_path(self.aco_select)
@@ -143,7 +144,8 @@ class ACO:
         denominator = 0.0
 
         # Calculate probability for each neighbour
-        for (_, pheromone, heuristic) in neighbours:
+        # TODO High if node.skip == true : heuristic = heuristic * (self.graph.current_depth - 1 / cfg['max_depth'] - 1)
+        for (_, pheromone, heuristic) in neighbours: # TODO MED if skip more than 1 layer, need to be optimized
             probability = pheromone * heuristic
             probabilities.append(probability)
             denominator += probability
@@ -164,7 +166,7 @@ class ACO:
         probability_sum = sum(probabilities)
         random_treshold = random.uniform(0, probability_sum)
         current_value = 0
-        for neighbour_index, probability in enumerate(probabilities):
+        for neighbour_index, probability in enumerate(probabilities): # TODO MED if skip more than 1 layer, need to be optimized
             current_value += probability
             if current_value > random_treshold:
                 return neighbours[neighbour_index][0]
@@ -247,7 +249,6 @@ class Ant:
             backend: Backend object.
             storage: Storage object.
         """
-        # Log.debug([str(n) for n in self.path]) # TODO debug
         # Extract path information
         self.path_description, path_hashes = storage.hash_path(self.path)
         self.path_hash = path_hashes[-1]
@@ -261,12 +262,11 @@ class Ant:
             # Re-use model
             new_model = existing_model
 
-
-        #TODO debug layers shape
+        #TODO LOW debug layers shape
         layers = ""
         for i in range(len(self.path)):
             layer = new_model.get_layer(index=i)
-            layers += str(layer) + ": " + str(layer.input_shape) + " ---> " + str(layer.output_shape) + "\n"
+            layers += f'{str(layer)}: {str(layer.input_shape)} ---> {str(layer.output_shape)} \n'
         Log.debug(layers)
 
         # Train model
@@ -307,7 +307,7 @@ class Graph:
         self.current_depth = current_depth
         self.input_node = self.get_node(Node.create_using_type('Input', 0))
         self.increase_depth()
-        self.nodes_count = 0 # TODO debug
+        self.nodes_count = 0 # TODO LOW debug
 
     def get_node(self, node: Node):
         """Tries to retrieve a given node from the graph. If the node does not
@@ -343,18 +343,18 @@ class Graph:
 
         current_node = self.input_node
         path = [current_node.create_deepcopy()]
-        # tic = time.perf_counter() # TODO debug
+        # tic = time.perf_counter() # TODO LOW debug
         while current_node.depth < self.current_depth: 
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
                 break
-            # print("CURRENT_NODE: ", current_node) # TODO debug
+            # print("CURRENT_NODE: ", current_node) # TODO LOW debug
             # Select node using given rule
             current_node = select_rule(current_node.neighbours)
             # Add only the copy of the node, so that original stays unmodified
             path.append(current_node.create_deepcopy())
-        # toc = time.perf_counter() # TODO debug
-        # print(f"generate path in {toc - tic:0.4f} seconds") # TODO debug
+        # toc = time.perf_counter() # TODO LOW debug
+        # print(f"generate path in {toc - tic:0.4f} seconds") # TODO LOW debug
         completed_path = self.complete_path(path)
         return completed_path
 
@@ -371,18 +371,20 @@ class Graph:
         nodes = []
         nodes.append(current_node)
         
-        # Expand only if it hasn't been expanded 
-        # TODO refacto doc
+        # Expand only if it hasn't been expanded or if the node is eligible for residual connections
         if  current_node.is_expanded is False or \
             (self.current_depth - current_node.depth <= cfg['residual_depth'] and \
                 current_node.last_checked != self.current_depth):
+
             current_node.neighbours = []
+
             max_residual_depth = depth + 1 + cfg['residual_depth']
-            max_depth = self.current_depth + 1 if  max_residual_depth > self.current_depth else max_residual_depth
-            # print (max_residual_depth, self.current_depth, max_depth) # TODO debug
+            max_depth = self.current_depth + 1 if  max_residual_depth >= self.current_depth else max_residual_depth
+
+            # print (max_residual_depth, self.current_depth, max_depth) # TODO LOW debug
             for residual_depth in range(depth + 1, max_depth):
                 temp_nodes = []
-                for node in nodes:
+                for node in nodes: # TODO LOW if skip more than 1 layer, need to be optimized,
                     if type(node) == NeighbourNode:
                         node = node.node
                     available_transitions = node.available_transitions
@@ -390,12 +392,18 @@ class Graph:
                         neighbour_node = self.get_node(Node(transition_name, residual_depth))
                         if current_node != node :
                             node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
+                        # TODO HIGH refacto for stochastic depth
+                        # neigbour = NeighbourNode(neighbour_node, heuristic_value)
+                        # if residual_depth > depth + 1:
+                        #   neighbour.node.skip = True
+                        # current_node.neighbours.append(neighbour)
                         current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
                     temp_nodes.extend([n.node for n in node.neighbours])
                 nodes = temp_nodes
+
             current_node.last_checked = self.current_depth
             current_node.is_expanded = True
-            # for n in current_node.neighbours: # TODO debug
+            # for n in current_node.neighbours: # TODO LOW debug
             #     print (str(current_node) + " HasNeighbour : " +  str(n.node))
         
         # Return value indicating if the node has neighbours after being expanded
@@ -419,7 +427,7 @@ class Graph:
         
         if path[-1].name in cfg['spatial_nodes']:
             path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
-        if not any(node.type == "Flatten" for node in path): # TODO To confirm
+        if not any(node.type == "Flatten" for node in path): # TODO HIGH To confirm
             Log.warning("Model without FlattenNode")
             path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
         if path[-1].name in cfg['flat_nodes']:
@@ -453,7 +461,7 @@ class Graph:
                 Log.info('\n'.join(info))
         Log.header("PHEROMONE END", type="RED")
 
-    def count_nodes(self, node): # TODO debug
+    def count_nodes(self, node): # TODO LOW debug
         nodes = [n.node for n in node.neighbours]
         if not nodes:
             self.nodes_count += 1
@@ -462,5 +470,5 @@ class Graph:
             self.count_nodes(n)
         self.nodes_count += 1
 
-    def reset_nodes_count(self): # TODO debug
+    def reset_nodes_count(self): # TODO LOW debug
         self.nodes_count = 0

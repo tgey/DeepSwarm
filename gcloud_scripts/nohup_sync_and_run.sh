@@ -27,11 +27,12 @@ do
         notify-send "DeepSwarm: $INSTANCE_NAME Nohup model launched"
 
         gcloud compute config-ssh
+        sleep 120
         
-        gcloud compute scp --recurse deepswarm/ $INSTANCE_NAME:~ --zone=$ZONE_NAME
+        gcloud compute scp --recurse tests/ $INSTANCE_NAME:~ --zone=$ZONE_NAME
         gcloud compute scp --recurse examples/ $INSTANCE_NAME:~ --zone=$ZONE_NAME
         gcloud compute scp --recurse settings/ $INSTANCE_NAME:~ --zone=$ZONE_NAME
-        gcloud compute scp --recurse tests/ $INSTANCE_NAME:~ --zone=$ZONE_NAME
+        gcloud compute scp --recurse deepswarm/ $INSTANCE_NAME:~ --zone=$ZONE_NAME
 
         gcloud compute scp gcloud_scripts/instance_run.sh $INSTANCE_NAME:~ --zone=$ZONE_NAME
         gcloud compute scp gcloud_scripts/google_drive_sync.py $INSTANCE_NAME:~ --zone=$ZONE_NAME

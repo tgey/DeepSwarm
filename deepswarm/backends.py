@@ -238,7 +238,7 @@ class TFKerasBackend(BaseBackend):
         if node.type == "Skip":
             return tf.keras.layers.Lambda(lambda x: x)
 
-        raise Exception('Not handled node type: %s' % str(node))
+        raise Exception(f'Not handled node type: {str(node)}')
 
     def map_activation(self, activation):
         if activation == "ReLU":
@@ -251,7 +251,7 @@ class TFKerasBackend(BaseBackend):
             return tf.keras.activations.sigmoid
         if activation == "Softmax":
             return tf.keras.activations.softmax
-        raise Exception('Not handled activation: %s' % str(activation))
+        raise Exception(f'Not handled activation: {str(activation)}')
 
     def train_model(self, model):
         # Create a checkpoint path

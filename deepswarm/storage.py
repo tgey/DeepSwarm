@@ -196,7 +196,7 @@ class Storage:
         hashes = []
         path_description = str(path[0])
         for node in path[1:]:
-            path_description += ' -> %s' % (node)
+            path_description += f' -> {node}'
             current_hash = hashlib.sha3_256(path_description.encode('utf-8')).hexdigest()
             hashes.append(current_hash)
         return (path_description, hashes)

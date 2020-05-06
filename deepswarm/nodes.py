@@ -16,7 +16,6 @@ class NodeAttribute:
 
 class Node:
     """Class responsible for representing Node."""
-
     def __init__(self, name: str, depth: int):
         self.name = name
         self.depth = depth
@@ -27,6 +26,7 @@ class Node:
         self.setup_attributes()
         self.setup_transitions()
         self.select_random_attributes()
+        # TODO HIGH self.skip = False
 
     @classmethod
     def create_using_type(cls, type: str, depth: int):
@@ -42,7 +42,7 @@ class Node:
         for node in nodes:
             if nodes[node]['type'] == type:
                 return cls(node, depth)
-        raise Exception('Type does not exist: %s' % str(type))
+        raise Exception(f'Type does not exist: {str(type)}')
 
     def setup_attributes(self):
         """Adds attributes from the settings file."""
@@ -117,7 +117,7 @@ class Node:
 
     def __str__(self):
         attributes = ', '.join([a.name + ":" + str(getattr(self, a.name)) for a in self.attributes])
-        return self.name + "(" + attributes + ")" + " depth: " + str(self.depth)
+        return f'{self.name} ({attributes}) - depth: {str(self.depth)}'
 
 
 class NeighbourNode:
