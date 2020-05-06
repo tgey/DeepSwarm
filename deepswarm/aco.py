@@ -123,6 +123,15 @@ class ACO:
         # Transform a list of NeighbourNode objects to list of tuples
         # (Node, pheromone, heuristic)
         tuple_neighbours = [(n.node, n.find_parent(node).pheromone, n.find_parent(node).heuristic) for n in neighbours]
+        tuple_neighbours = []
+        for n in neighbours:
+            # Log.debug(f'{n.node}, {n.pheromone}, {n.heuristic}') # TODO LOW debug
+            if n.node.skip == True:
+                n.pheuristic = n.heuristic * ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1)) # TODO HIGH benchmark the activation formula
+            else:
+                n.pheuristic = n.heuristic
+            # Log.debug(f'heuristic value: {n.pheuristic} for {n.node}') # TODO LOW debug
+            tuple_neighbours.append((n.node, n.pheromone, n.pheuristic))
         # Select node using ant colony selection rule
         current_node = self.aco_select_rule(tuple_neighbours)
         # Select custom attributes using ant colony selection rule
@@ -142,9 +151,7 @@ class ACO:
 
         probabilities = []
         denominator = 0.0
-
         # Calculate probability for each neighbour
-        # TODO High if node.skip == true : heuristic = heuristic * (self.graph.current_depth - 1 / cfg['max_depth'] - 1)
         for (_, pheromone, heuristic) in neighbours: # TODO MED if skip more than 1 layer, need to be optimized
             probability = pheromone * heuristic
             probabilities.append(probability)
