@@ -98,6 +98,16 @@ class Node:
 
         self.select_attributes(lambda dict: random.choice(list(dict.keys())))
 
+    def find_node_into_neighbours(self, neighbour_node) -> bool:
+        # print(f'TO COMPARE {str(neighbour_node.node)} {neighbour_node.heuristic}')
+        for neighbour in self.neighbours:
+            # print('COMPARING ' + str(neighbour.node))
+            if neighbour.node == neighbour_node.node and neighbour.heuristic == neighbour_node.heuristic:
+                # print('AAAAA')
+                return True
+        # print ('BBBB')
+        return False
+
     def create_deepcopy(self):
         """Returns a newly created copy of Node object."""
 
