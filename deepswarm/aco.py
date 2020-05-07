@@ -86,7 +86,7 @@ class ACO:
 
         ants = []
         for ant_number in range(cfg['aco']['ant_count']):
-            Log.header(f'GENERATING ANT {ant_number + 1}')
+            Log.header(f'GENERATING ANT {ant_number + 1} FOR DEPTH {self.graph.current_depth}')
             ant = Ant()
             # Generate ant's path using ACO selection rule
             ant.path = self.graph.generate_path(self.aco_select)
@@ -267,7 +267,7 @@ class Ant:
         for i in range(len(self.path)):
             layer = new_model.get_layer(index=i)
             layers += f'{str(layer)}: {str(layer.input_shape)} ---> {str(layer.output_shape)} \n'
-        Log.debug(layers)
+        # Log.debug(layers)
 
         # Train model
         new_model = backend.train_model(new_model)
@@ -345,10 +345,12 @@ class Graph:
         path = [current_node.create_deepcopy()]
         # tic = time.perf_counter() # TODO LOW debug
         while current_node.depth < self.current_depth: 
+
+            print("CURRENT_NODE: ", current_node) # TODO LOW debug
+
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
                 break
-            # print("CURRENT_NODE: ", current_node) # TODO LOW debug
             # Select node using given rule
             current_node = select_rule(current_node.neighbours)
             # Add only the copy of the node, so that original stays unmodified
@@ -368,43 +370,59 @@ class Graph:
         Returns:
             a boolean value which indicates if the node has any neighbours.
         """
-        nodes = []
-        nodes.append(current_node)
-        
-        # Expand only if it hasn't been expanded or if the node is eligible for residual connections
+
+        # neighbours_str = "" # TODO LOW debug
+        # for n in current_node.neighbours:
+        #     neighbours_str += f'BEFORE {current_node}  HasNeighbour : {str(n.node)} with {n.pheromone} and h :{n.heuristic}\n'
+        # Log.debug(neighbours_str)
+
+        # Expand only if :
+        # it hasn't been expanded
+        # if the node hasn't been residualy expanded during the same depth (otherwise create duplicates)
+        # if the node is eligible for new residual connections
         if  current_node.is_expanded is False or \
-            (self.current_depth - current_node.depth <= cfg['residual_depth'] and \
+            (self.current_depth - current_node.depth <= cfg['residual_depth'] + 1 and \
                 current_node.last_checked != self.current_depth):
 
-            current_node.neighbours = []
 
-            max_residual_depth = depth + 1 + cfg['residual_depth']
-            max_depth = self.current_depth + 1 if  max_residual_depth >= self.current_depth else max_residual_depth
+            #list of nodes to parse
+            #only current_node for plain connections
+            #current_node and its recursive neighbours for residual connections
+            nodes = []
+            nodes.append(current_node)
+            # current_node.neighbours = []
 
+            max_residual_depth = depth + 2 + cfg['residual_depth']
+            max_depth = self.current_depth + 1 if  max_residual_depth > self.current_depth else max_residual_depth
             # print (max_residual_depth, self.current_depth, max_depth) # TODO LOW debug
+
             for residual_depth in range(depth + 1, max_depth):
                 temp_nodes = []
+
                 for node in nodes: # TODO LOW if skip more than 1 layer, need to be optimized,
                     if type(node) == NeighbourNode:
                         node = node.node
+
                     available_transitions = node.available_transitions
                     for (transition_name, heuristic_value) in available_transitions:
                         neighbour_node = self.get_node(Node(transition_name, residual_depth))
+                        neighbour = NeighbourNode(neighbour_node, heuristic_value)
+
                         if current_node != node :
-                            node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
-                        # TODO HIGH refacto for stochastic depth
-                        # neigbour = NeighbourNode(neighbour_node, heuristic_value)
-                        # if residual_depth > depth + 1:
-                        #   neighbour.node.skip = True
-                        # current_node.neighbours.append(neighbour)
-                        current_node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
+                            node.neighbours.append(neighbour)
+                        if not current_node.find_node_into_neighbours(neighbour):
+                            current_node.neighbours.append(neighbour)
                     temp_nodes.extend([n.node for n in node.neighbours])
                 nodes = temp_nodes
 
+            #last time the node has been checked for residual connections
             current_node.last_checked = self.current_depth
             current_node.is_expanded = True
-            # for n in current_node.neighbours: # TODO LOW debug
-            #     print (str(current_node) + " HasNeighbour : " +  str(n.node))
+
+            # neighbours_str = "" # TODO LOW debug
+            # for n in current_node.neighbours:
+            #     neighbours_str += f'AFTER {current_node}  HasNeighbour : {str(n.node)} with p :{n.pheromone} and h :{n.heuristic}\n'
+            # Log.debug(neighbours_str)
         
         # Return value indicating if the node has neighbours after being expanded
         return len(current_node.neighbours) > 0
