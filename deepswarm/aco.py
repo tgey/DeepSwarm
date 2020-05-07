@@ -98,7 +98,7 @@ class ACO:
             self.update_pheromone(ant=ant, update_rule=self.local_update)
         return ants
 
-    def random_select(self, neighbours: list):
+    def random_select(self, node: Node):
         """Randomly selects one neighbour node and its attributes.
 
         Args:
@@ -106,12 +106,12 @@ class ACO:
         Returns:
             a randomly selected neighbour node.
         """
-
+        neighbours = node.neighbours
         current_node = random.choice(neighbours).node
         current_node.select_random_attributes()
         return current_node
 
-    def aco_select(self, neighbours: list):
+    def aco_select(self, node: Node):
         """Selects one neighbour node and its attributes using ACO selection rule.
 
         Args:
@@ -120,17 +120,24 @@ class ACO:
             selected neighbour node.
         """
 
+        neighbours = node.neighbours
         # Transform a list of NeighbourNode objects to list of tuples
         # (Node, pheromone, heuristic)
         tuple_neighbours = []
         for n in neighbours:
-            # Log.debug(f'{n.node}, {n.pheromone}, {n.heuristic}') # TODO LOW debug
-            if n.node.skip == True:
-                n.pheuristic = n.heuristic * ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1)) # TODO HIGH benchmark the activation formula
+
+            #Check if neighbour if a direct neighbour or a residual neighbour
+            if n.node.depth - (node.depth + 1) != 0:
+                # TODO HIGH benchmark the activation formula
+                uniform = (1 / (n.node.depth - (node.depth + 1)))
+                normalized = ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1))
+                # Log.debug(f'normalized: {normalized} uniform: {uniform}') # TODO LOW debug
+                new_heuristic = n.heuristic * normalized * uniform
             else:
-                n.pheuristic = n.heuristic
-            # Log.debug(f'heuristic value: {n.pheuristic} for {n.node}') # TODO LOW debug
-            tuple_neighbours.append((n.node, n.pheromone, n.pheuristic))
+                new_heuristic = n.heuristic
+            Log.debug(f'heuristic value: {new_heuristic} for {n.node} with pheromone {n.pheromone}') # TODO LOW debug
+            if (n.node, n.pheromone, new_heuristic) not in tuple_neighbours:
+                tuple_neighbours.append((n.node, n.pheromone, new_heuristic))
         # Select node using ant colony selection rule
         current_node = self.aco_select_rule(tuple_neighbours)
         # Select custom attributes using ant colony selection rule
@@ -273,7 +280,7 @@ class Ant:
         for i in range(len(self.path)):
             layer = new_model.get_layer(index=i)
             layers += f'{str(layer)}: {str(layer.input_shape)} ---> {str(layer.output_shape)} \n'
-        Log.debug(layers)
+        # Log.debug(layers)
 
         # Train model
         new_model = backend.train_model(new_model)
@@ -355,10 +362,13 @@ class Graph:
             if not self.has_neighbours(current_node, current_node.depth):
                 break
             # Log.debug(f'CURRENT_NODE: {current_node}') # TODO LOW debug
+
             # Select node using given rule
-            current_node = select_rule(current_node.neighbours)
+            current_node = select_rule(current_node)
+
             # Add only the copy of the node, so that original stays unmodified
             path.append(current_node.create_deepcopy())
+
         # toc = time.perf_counter() # TODO LOW debug
         # print(f"generate path in {toc - tic:0.4f} seconds") # TODO LOW debug
         completed_path = self.complete_path(path)
@@ -400,8 +410,6 @@ class Graph:
                             node.neighbours.append(NeighbourNode(neighbour_node, heuristic_value))
                         # TODO HIGH refacto for stochastic depth
                         neighbour = NeighbourNode(neighbour_node, heuristic_value)
-                        if residual_depth > depth + 1:
-                          neighbour.node.skip = True
                         current_node.neighbours.append(neighbour)
                     temp_nodes.extend([n.node for n in node.neighbours])
                 nodes = temp_nodes
