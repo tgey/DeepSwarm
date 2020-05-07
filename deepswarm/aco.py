@@ -119,10 +119,6 @@ class ACO:
         Returns:
             selected neighbour node.
         """
-<<<<<<< HEAD
-=======
-
->>>>>>> progressive skip based on normalized +uniform depth, only for residual neighbours
         neighbours = node.neighbours
         # Transform a list of NeighbourNode objects to list of tuples
         # (Node, pheromone, heuristic)
