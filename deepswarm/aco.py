@@ -119,19 +119,29 @@ class ACO:
         Returns:
             selected neighbour node.
         """
+<<<<<<< HEAD
+=======
+
+>>>>>>> progressive skip based on normalized +uniform depth, only for residual neighbours
         neighbours = node.neighbours
         # Transform a list of NeighbourNode objects to list of tuples
         # (Node, pheromone, heuristic)
         tuple_neighbours = [(n.node, n.find_parent(node).pheromone, n.find_parent(node).heuristic) for n in neighbours]
         tuple_neighbours = []
         for n in neighbours:
-            # Log.debug(f'{n.node}, {n.pheromone}, {n.heuristic}') # TODO LOW debug
-            if n.node.skip == True:
-                n.pheuristic = n.heuristic * ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1)) # TODO HIGH benchmark the activation formula
+
+            #Check if neighbour if a direct neighbour or a residual neighbour
+            if n.node.depth - (node.depth + 1) != 0:
+                # TODO HIGH benchmark the activation formula
+                uniform = (1 / (n.node.depth - (node.depth + 1)))
+                normalized = ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1))
+                # Log.debug(f'normalized: {normalized} uniform: {uniform}') # TODO LOW debug
+                new_heuristic = n.heuristic * normalized * uniform
             else:
-                n.pheuristic = n.heuristic
-            # Log.debug(f'heuristic value: {n.pheuristic} for {n.node}') # TODO LOW debug
-            tuple_neighbours.append((n.node, n.pheromone, n.pheuristic))
+                new_heuristic = n.heuristic
+            Log.debug(f'heuristic value: {new_heuristic} for {n.node} with pheromone {n.pheromone}') # TODO LOW debug
+            if (n.node, n.pheromone, new_heuristic) not in tuple_neighbours:
+                tuple_neighbours.append((n.node, n.pheromone, new_heuristic))
         # Select node using ant colony selection rule
         current_node = self.aco_select_rule(tuple_neighbours)
         # Select custom attributes using ant colony selection rule
