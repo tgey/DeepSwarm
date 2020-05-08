@@ -184,7 +184,8 @@ class ACO:
         # Skip the input node as it's not connected to any previous node
         for node in ant.path[1:]:
             # Use a node from the path to retrieve its corresponding instance from the graph
-            neighbour = next((x for x in current_node.neighbours if x.node.name == node.name), None)
+            neighbour = next((x for x in current_node.neighbours if x.node.name == node.name and \
+                                                                    x.node.depth == node.depth), None)
 
             # If the path was closed using complete_path method, ignore the rest of the path
             if neighbour is None:
@@ -390,7 +391,6 @@ class Graph:
             #current_node and its recursive neighbours for residual connections
             nodes = []
             nodes.append(current_node)
-            # current_node.neighbours = []
 
             max_residual_depth = depth + 2 + cfg['residual_depth']
             max_depth = self.current_depth + 1 if  max_residual_depth > self.current_depth else max_residual_depth
@@ -413,6 +413,8 @@ class Graph:
                         if not current_node.find_node_into_neighbours(neighbour):
                             current_node.neighbours.append(neighbour)
                     temp_nodes.extend([n.node for n in node.neighbours])
+                    if current_node != node :
+                        node.neighbours = []
                 nodes = temp_nodes
 
             #last time the node has been checked for residual connections
