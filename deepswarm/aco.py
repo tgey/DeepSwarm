@@ -347,7 +347,7 @@ class Graph:
         # tic = time.perf_counter() # TODO LOW debug
         while current_node.depth < self.current_depth: 
 
-            print("CURRENT_NODE: ", current_node) # TODO LOW debug
+            # Log.debug(f'CURRENT_NODE: {current_node}') # TODO LOW debug
 
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
