@@ -26,7 +26,6 @@ class Node:
         self.setup_attributes()
         self.setup_transitions()
         self.select_random_attributes()
-        # TODO HIGH self.skip = False
 
     @classmethod
     def create_using_type(cls, type: str, depth: int):
@@ -99,14 +98,10 @@ class Node:
 
         self.select_attributes(lambda dict: random.choice(list(dict.keys())))
 
-    def find_node_into_neighbours(self, neighbour_node) -> bool:
-        # print(f'TO COMPARE {str(neighbour_node.node)} {neighbour_node.heuristic}')
+    def find_node_into_neighbours(self, neighbour_node, heuristic) -> bool:
         for neighbour in self.neighbours:
-            # print('COMPARING ' + str(neighbour.node))
-            if neighbour.node == neighbour_node.node and neighbour.heuristic == neighbour_node.heuristic:
-                # print('AAAAA')
+            if neighbour.node == neighbour_node.node and neighbour.find_parent(self).heuristic == heuristic:
                 return True
-        # print ('BBBB')
         return False
 
     def create_deepcopy(self):
@@ -130,10 +125,21 @@ class Node:
         return f'{self.name} ({attributes}) - depth: {str(self.depth)}'
 
 
-class NeighbourNode:
-    """Class responsible for encapsulating Node's neighbour."""
-
+class ParentNode:
     def __init__(self, node: Node, heuristic: float, pheromone: float = cfg['aco']['pheromone']['start']):
         self.node = node
         self.heuristic = heuristic
         self.pheromone = pheromone
+    
+    def __str__(self):
+        return f'Parent: {self.node.name} - depth: {str(self.node.depth)} - p: {self.pheromone} - h: {self.heuristic}'
+
+class NeighbourNode:
+    """Class responsible for encapsulating Node's neighbour."""
+
+    def __init__(self, node: Node):
+        self.node = node
+        self.parents = []
+
+    def find_parent(self, node) -> ParentNode:
+        return next((x for x in self.parents if x.node == node), None)

@@ -236,7 +236,10 @@ class TFKerasBackend(BaseBackend):
             return tf.keras.layers.Dense(**parameters)
 
         if node.type == "Skip":
-            return tf.keras.layers.Lambda(lambda x: x)
+            parameters.update({
+                'function': lambda x: x
+            })
+            return tf.keras.layers.Lambda(**parameters)
 
         raise Exception(f'Not handled node type: {str(node)}')
 

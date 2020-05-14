@@ -6,7 +6,7 @@ import random
 
 from . import cfg, left_cost_is_better
 from .log import Log
-from .nodes import Node, NeighbourNode
+from .nodes import Node, NeighbourNode, ParentNode
 import tensorflow as tf
 
 import os
@@ -98,7 +98,7 @@ class ACO:
             self.update_pheromone(ant=ant, update_rule=self.local_update)
         return ants
 
-    def random_select(self, neighbours: list):
+    def random_select(self, node: Node):
         """Randomly selects one neighbour node and its attributes.
 
         Args:
@@ -106,12 +106,12 @@ class ACO:
         Returns:
             a randomly selected neighbour node.
         """
-
+        neighbours = node.neighbours
         current_node = random.choice(neighbours).node
         current_node.select_random_attributes()
         return current_node
 
-    def aco_select(self, neighbours: list):
+    def aco_select(self, node: Node):
         """Selects one neighbour node and its attributes using ACO selection rule.
 
         Args:
@@ -119,10 +119,10 @@ class ACO:
         Returns:
             selected neighbour node.
         """
-
+        neighbours = node.neighbours
         # Transform a list of NeighbourNode objects to list of tuples
         # (Node, pheromone, heuristic)
-        tuple_neighbours = [(n.node, n.pheromone, n.heuristic) for n in neighbours]
+        tuple_neighbours = [(n.node, n.find_parent(node).pheromone, n.find_parent(node).heuristic) for n in neighbours]
         # Select node using ant colony selection rule
         current_node = self.aco_select_rule(tuple_neighbours)
         # Select custom attributes using ant colony selection rule
@@ -152,7 +152,10 @@ class ACO:
 
         # Try to perform greedy select: exploitation
         random_variable = random.uniform(0, 1)
-        if random_variable <= cfg['aco']['greediness']:
+        greediness_threshold = cfg['aco']['greediness'] * (self.graph.current_depth / cfg['max_depth'])
+        if random_variable <= greediness_threshold:
+        # if random_variable <= cfg['aco']['greediness']:
+            # Log.debug("EXPLOITATION")
             # Find max probability
             max_probability = max(probabilities)
             # Gather the indices of probabilities that are equal to the max probability
@@ -162,14 +165,8 @@ class ACO:
             return neighbours[neighbour_index][0]
 
         # Otherwise perform select using roulette wheel: exploration
-        probabilities = [x / denominator for x in probabilities]
-        probability_sum = sum(probabilities)
-        random_treshold = random.uniform(0, probability_sum)
-        current_value = 0
-        for neighbour_index, probability in enumerate(probabilities): # TODO MED if skip more than 1 layer, need to be optimized
-            current_value += probability
-            if current_value > random_treshold:
-                return neighbours[neighbour_index][0]
+        # Log.debug("EXPLORATION")
+        return (random.choice(neighbours)[0])
 
     def update_pheromone(self, ant, update_rule):
         """Updates the pheromone using given update rule.
@@ -192,8 +189,9 @@ class ACO:
                 break
 
             # Update pheromone connecting to a neighbour
-            neighbour.pheromone = update_rule(
-                old_value=neighbour.pheromone,
+            parent_node = neighbour.find_parent(current_node) 
+            parent_node.pheromone = update_rule(
+                old_value=parent_node.pheromone,
                 cost=ant.cost
             )
 
@@ -217,6 +215,14 @@ class ACO:
 
         decay = cfg['aco']['pheromone']['decay']
         pheromone_0 = cfg['aco']['pheromone']['start']
+        
+        # print((1 - decay) * old_value + ((cost - self.best_ant.cost)))
+        
+        # E = (cost - self.best_ant.cost) / 10
+        # pheromone_laid = 1 / E
+        # new_value = (1 - decay) * old_value + pheromone_laid
+        
+        # print (f'decay: {decay}, old_value: {old_value}, pheromone_0: {pheromone_0}')
         return (1 - decay) * old_value + (decay * pheromone_0)
 
     def global_update(self, old_value: float , cost):
@@ -264,10 +270,10 @@ class Ant:
             new_model = existing_model
 
         #TODO LOW debug layers shape
-        layers = ""
-        for i in range(len(self.path)):
-            layer = new_model.get_layer(index=i)
-            layers += f'{str(layer)}: {str(layer.input_shape)} ---> {str(layer.output_shape)} \n'
+        # layers = ""
+        # for i in range(len(self.path)):
+        #     layer = new_model.get_layer(index=i)
+        #     layers += f'{str(layer)}: {str(layer.input_shape)} ---> {str(layer.output_shape)} \n'
         # Log.debug(layers)
 
         # Train model
@@ -344,20 +350,18 @@ class Graph:
 
         current_node = self.input_node
         path = [current_node.create_deepcopy()]
-        # tic = time.perf_counter() # TODO LOW debug
         while current_node.depth < self.current_depth: 
 
             # Log.debug(f'CURRENT_NODE: {current_node}') # TODO LOW debug
 
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
+                Log.warning('OutputNode reached before complete_path')
                 break
             # Select node using given rule
-            current_node = select_rule(current_node.neighbours)
+            current_node = select_rule(current_node)
             # Add only the copy of the node, so that original stays unmodified
             path.append(current_node.create_deepcopy())
-        # toc = time.perf_counter() # TODO LOW debug
-        # print(f"generate path in {toc - tic:0.4f} seconds") # TODO LOW debug
         completed_path = self.complete_path(path)
         return completed_path
 
@@ -374,7 +378,11 @@ class Graph:
 
         # neighbours_str = "" # TODO LOW debug
         # for n in current_node.neighbours:
-        #     neighbours_str += f'BEFORE {current_node}  HasNeighbour : {str(n.node)} with {n.pheromone} and h :{n.heuristic}\n'
+        #     neighbours_str += f'BEFORE {current_node.name} HasNeigh : {str(n.node)}, h :{n.heuristic}, {n.find_parent(current_node)}\n'
+        #     parents_str = ""
+        #     for p in n.parents:
+        #         parents_str += f'Neighbour: {n.node.name} {n.node.depth} - {p}\n'
+        #     Log.debug(parents_str)
         # Log.debug(neighbours_str)
 
         # Expand only if :
@@ -385,7 +393,6 @@ class Graph:
             (self.current_depth - current_node.depth <= cfg['residual_depth'] + 1 and \
                 current_node.last_checked != self.current_depth):
 
-
             #list of nodes to parse
             #only current_node for plain connections
             #current_node and its recursive neighbours for residual connections
@@ -394,7 +401,6 @@ class Graph:
 
             max_residual_depth = depth + 2 + cfg['residual_depth']
             max_depth = self.current_depth + 1 if  max_residual_depth > self.current_depth else max_residual_depth
-            # print (max_residual_depth, self.current_depth, max_depth) # TODO LOW debug
 
             for residual_depth in range(depth + 1, max_depth):
                 temp_nodes = []
@@ -406,15 +412,16 @@ class Graph:
                     available_transitions = node.available_transitions
                     for (transition_name, heuristic_value) in available_transitions:
                         neighbour_node = self.get_node(Node(transition_name, residual_depth))
-                        neighbour = NeighbourNode(neighbour_node, heuristic_value)
+                        neighbour = NeighbourNode(node=neighbour_node)
 
                         if current_node != node :
+                            neighbour.parents.append(ParentNode(node, heuristic=heuristic_value))
                             node.neighbours.append(neighbour)
-                        if not current_node.find_node_into_neighbours(neighbour):
+                        if not current_node.find_node_into_neighbours(neighbour, heuristic_value):
+                            neighbour.parents.append(ParentNode(current_node, heuristic=heuristic_value)) #TODO HIGH review heuristic_value for skip-connections
                             current_node.neighbours.append(neighbour)
+                    
                     temp_nodes.extend([n.node for n in node.neighbours])
-                    if current_node != node :
-                        node.neighbours = []
                 nodes = temp_nodes
 
             #last time the node has been checked for residual connections
@@ -423,9 +430,12 @@ class Graph:
 
             # neighbours_str = "" # TODO LOW debug
             # for n in current_node.neighbours:
-            #     neighbours_str += f'AFTER {current_node}  HasNeighbour : {str(n.node)} with p :{n.pheromone} and h :{n.heuristic}\n'
+            #     neighbours_str += f'AFTER {current_node.name} HasNeigh : {str(n.node)}, h :{n.heuristic}, {n.find_parent(current_node)}\n'
+            #     parents_str = ""
+            #     for p in n.parents:
+            #         parents_str += f'Neighbour: {n.node.name} {n.node.depth} - {p}\n'
+            #     Log.debug(parents_str)
             # Log.debug(neighbours_str)
-        
         # Return value indicating if the node has neighbours after being expanded
         return len(current_node.neighbours) > 0
 
@@ -445,12 +455,17 @@ class Graph:
         # of the best path (as it's impossible to close path automatically when it's so short)
         # this would result in bias pheromone received by these nodes during later iterations
         
-        if path[-1].name in cfg['spatial_nodes']:
-            path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
-        if not any(node.type == "Flatten" for node in path): # TODO HIGH To confirm
+        if not any(node.type == "Flatten" for node in path):
             Log.warning("Model without FlattenNode")
+            if path[-1].name == 'OutputNode':
+                path[-1] = self.get_node(Node.create_using_type('Flatten', path[-1].depth))
+            else: 
+                path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
+        if path[-1].name in cfg['spatial_nodes']:
+            Log.warning("Last Node is Spatial, add FlattenNode")
             path.append(self.get_node(Node.create_using_type('Flatten', path[-1].depth + 1)))
         if path[-1].name in cfg['flat_nodes']:
+            Log.warning("Model without OutputNode")
             path.append(self.get_node(Node.create_using_type('Output', path[-1].depth + 1)))
         return path
 
