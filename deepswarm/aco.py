@@ -122,22 +122,21 @@ class ACO:
         neighbours = node.neighbours
         # Transform a list of NeighbourNode objects to list of tuples
         # (Node, pheromone, heuristic)
-        tuple_neighbours = [(n.node, n.find_parent(node).pheromone, n.find_parent(node).heuristic) for n in neighbours]
+        
         tuple_neighbours = []
         for n in neighbours:
-
             #Check if neighbour if a direct neighbour or a residual neighbour
             if n.node.depth - (node.depth + 1) != 0:
                 # TODO HIGH benchmark the activation formula
                 uniform = (1 / (n.node.depth - (node.depth + 1)))
                 normalized = ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1))
                 # Log.debug(f'normalized: {normalized} uniform: {uniform}') # TODO LOW debug
-                new_heuristic = n.heuristic * normalized * uniform
+                new_heuristic = n.find_parent(node).heuristic * normalized * uniform
             else:
-                new_heuristic = n.heuristic
-            Log.debug(f'heuristic value: {new_heuristic} for {n.node} with pheromone {n.pheromone}') # TODO LOW debug
-            if (n.node, n.pheromone, new_heuristic) not in tuple_neighbours:
-                tuple_neighbours.append((n.node, n.pheromone, new_heuristic))
+                new_heuristic = n.find_parent(node).heuristic
+            # Log.debug(f'heuristic value: {new_heuristic} for {n.node} with pheromone {n.find_parent(node).pheromone}') # TODO LOW debug
+            if (n.node, n.find_parent(node).pheromone, new_heuristic) not in tuple_neighbours:
+                tuple_neighbours.append((n.node, n.find_parent(node).pheromone, new_heuristic))
         # Select node using ant colony selection rule
         current_node = self.aco_select_rule(tuple_neighbours)
         # Select custom attributes using ant colony selection rule
@@ -391,7 +390,7 @@ class Graph:
 
         # neighbours_str = "" # TODO LOW debug
         # for n in current_node.neighbours:
-        #     neighbours_str += f'BEFORE {current_node.name} HasNeigh : {str(n.node)}, h :{n.heuristic}, {n.find_parent(current_node)}\n'
+        #     neighbours_str += f'BEFORE {current_node.name} HasNeigh : {str(n.node)}, {n.find_parent(current_node)}\n'
         #     parents_str = ""
         #     for p in n.parents:
         #         parents_str += f'Neighbour: {n.node.name} {n.node.depth} - {p}\n'
@@ -443,7 +442,7 @@ class Graph:
 
             # neighbours_str = "" # TODO LOW debug
             # for n in current_node.neighbours:
-            #     neighbours_str += f'AFTER {current_node.name} HasNeigh : {str(n.node)}, h :{n.heuristic}, {n.find_parent(current_node)}\n'
+            #     neighbours_str += f'AFTER {current_node.name} HasNeigh : {str(n.node)}, {n.find_parent(current_node)}\n'
             #     parents_str = ""
             #     for p in n.parents:
             #         parents_str += f'Neighbour: {n.node.name} {n.node.depth} - {p}\n'

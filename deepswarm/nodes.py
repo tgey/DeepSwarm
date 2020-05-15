@@ -97,21 +97,10 @@ class Node:
 
         self.select_attributes(lambda dict: random.choice(list(dict.keys())))
 
-<<<<<<< HEAD
     def find_node_into_neighbours(self, neighbour_node, heuristic) -> bool:
         for neighbour in self.neighbours:
             if neighbour.node == neighbour_node.node and neighbour.find_parent(self).heuristic == heuristic:
                 return True
-=======
-    def find_node_into_neighbours(self, neighbour_node) -> bool:
-        # print(f'TO COMPARE {str(neighbour_node.node)} {neighbour_node.heuristic}')
-        for neighbour in self.neighbours:
-            # print('COMPARING ' + str(neighbour.node))
-            if neighbour.node == neighbour_node.node and neighbour.heuristic == neighbour_node.heuristic:
-                # print('AAAAA')
-                return True
-        # print ('BBBB')
->>>>>>> yaml residual depth correction, fix global pheromone update with skip connections
         return False
 
     def create_deepcopy(self):
