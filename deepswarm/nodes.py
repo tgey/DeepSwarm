@@ -6,7 +6,6 @@ import random
 
 from . import cfg, nodes
 
-
 class NodeAttribute:
     """Class responsible for encapsulating Node's attribute."""
 
@@ -127,12 +126,12 @@ class Node:
 
 class ParentNode:
     def __init__(self, node: Node, heuristic: float, pheromone: float = cfg['aco']['pheromone']['start']):
-        self.node = node
+        self.id = id(node)
         self.heuristic = heuristic
         self.pheromone = pheromone
     
     def __str__(self):
-        return f'Parent: {self.node.name} - depth: {str(self.node.depth)} - p: {self.pheromone} - h: {self.heuristic}'
+        return f'Parent: {self.id} - p: {self.pheromone} - h: {self.heuristic}'
 
 class NeighbourNode:
     """Class responsible for encapsulating Node's neighbour."""
@@ -141,5 +140,5 @@ class NeighbourNode:
         self.node = node
         self.parents = []
 
-    def find_parent(self, node) -> ParentNode:
-        return next((x for x in self.parents if x.node == node), None)
+    def find_parent(self, node: Node) -> ParentNode:
+        return next((x for x in self.parents if x.id == id(node)), None)

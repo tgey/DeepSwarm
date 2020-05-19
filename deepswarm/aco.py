@@ -152,9 +152,9 @@ class ACO:
 
         # Try to perform greedy select: exploitation
         random_variable = random.uniform(0, 1)
-        greediness_threshold = cfg['aco']['greediness'] * (self.graph.current_depth / cfg['max_depth'])
-        if random_variable <= greediness_threshold:
-        # if random_variable <= cfg['aco']['greediness']:
+        # greediness_threshold = cfg['aco']['greediness'] * (self.graph.current_depth / cfg['max_depth'])
+        # if random_variable <= greediness_threshold:
+        if random_variable <= cfg['aco']['greediness']:
             # Log.debug("EXPLOITATION")
             # Find max probability
             max_probability = max(probabilities)
