@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras import backend as K
 
 from . import cfg
-
+from .resnet import *
 
 class Dataset:
     """Class responsible for encapsulating all the required data."""
@@ -143,7 +143,11 @@ class TFKerasBackend(BaseBackend):
 
         # Convert each node to layer and then connect it to the previous layer
         for node in path[1:]:
-            layer = self.create_layer(node)(layer)
+            if node.format == 'block':
+                layer = self.create_block(node)(layer)
+            else:
+                layer = self.create_layer(node)(layer)
+
         # Return generated model
         model = tf.keras.Model(inputs=input_layer, outputs=layer)
         self.compile_model(model)
@@ -156,7 +160,10 @@ class TFKerasBackend(BaseBackend):
 
         # Append layers from the new model to the old model
         for node in new_model_path[starting_point:]:
-            last_layer = self.create_layer(node)(last_layer)
+            if node.format == 'block':
+                last_layer = self.create_block(node)(last_layer)
+            else:
+                last_layer = self.create_layer(node)(last_layer)
 
         # Return new model
         model = tf.keras.Model(inputs=old_model.inputs, outputs=last_layer)
@@ -240,6 +247,49 @@ class TFKerasBackend(BaseBackend):
                 'function': lambda x: x
             })
             return tf.keras.layers.Lambda(**parameters)
+
+        raise Exception(f'Not handled node type: {str(node)}')
+
+    def _shortcut(self, input, residual):
+        """Adds a shortcut between input and residual block and merges them with "sum"
+        """
+        # Expand channels of shortcut to match residual.
+        # Stride appropriately to match residual (width, height)
+        # Should be int if network architecture is correctly configured.
+        input_shape = K.int_shape(input)
+        residual_shape = K.int_shape(residual)
+        stride_width = int(round(input_shape[1] / residual_shape[1]))
+        stride_height = int(round(input_shape[2] / residual_shape[2]))
+        equal_channels = input_shape[3] == residual_shape[3]
+
+        shortcut = input
+        # 1 X 1 conv if shape is different. Else identity.
+        if stride_width > 1 or stride_height > 1 or not equal_channels:
+            shortcut = tf.keras.layers.Conv2D(filters=residual_shape[3],
+                            kernel_size=(1, 1),
+                            strides=(stride_width, stride_height),
+                            padding="valid",
+                            kernel_initializer="he_normal",
+                            kernel_regularizer=tf.keras.regularizers.l2(0.0001))(input)
+
+        return tf.keras.layers.add([shortcut, residual])
+
+    def create_block(self, node):
+        parameters = {'name': str(time.time())}
+
+        def f(input):
+            if node.type == 'Residual':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'data_format': self.data_format,
+                    'activation': self.map_activation(node.activation),
+                })
+                conv1 = resConv2DBlock(**parameters)(input)
+
+                return self._shortcut(input, conv1)
+        return f
 
         raise Exception(f'Not handled node type: {str(node)}')
 

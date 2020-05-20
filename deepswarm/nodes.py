@@ -20,6 +20,7 @@ class Node:
         self.depth = depth
         self.neighbours = []
         self.last_checked = depth
+        self.format = nodes[self.name]['format']
         self.type = nodes[self.name]['type']
         self.setup_attributes()
         self.setup_transitions()
