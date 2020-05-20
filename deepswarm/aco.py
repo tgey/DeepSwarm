@@ -7,6 +7,7 @@ import random
 from . import cfg, left_cost_is_better
 from .log import Log
 from .nodes import Node, NeighbourNode, ParentNode
+from .util import get_size, getsize
 import tensorflow as tf
 
 import os
@@ -66,14 +67,6 @@ class ACO:
 
             # Perform a backup
             self.storage.perform_backup()
-
-            # if (self.graph.current_depth % 3 == 0): # TODO LOW debug
-            #     tic = time.perf_counter()
-            #     self.graph.count_nodes(self.graph.input_node)
-            #     Log.header("NB NODES for depth " + str(self.current_depth))
-            #     Log.debug(self.nodes_count)
-            #     toc = time.perf_counter()
-            #     print(f"Count nodes in {toc - tic:0.4f} seconds")
         
         return self.best_ant
 
@@ -107,7 +100,8 @@ class ACO:
             a randomly selected neighbour node.
         """
         neighbours = node.neighbours
-        current_node = random.choice(neighbours).node
+        random_choice = random.choice(neighbours)
+        current_node = self.graph.get_node_by_name_and_depth(random_choice.name, random_choice.depth)
         current_node.select_random_attributes()
         return current_node
 
@@ -126,17 +120,18 @@ class ACO:
         tuple_neighbours = []
         for n in neighbours:
             #Check if neighbour if a direct neighbour or a residual neighbour
-            if n.node.depth - (node.depth + 1) != 0:
+            if n.depth - (node.depth + 1) != 0:
                 # TODO HIGH benchmark the activation formula
-                uniform = (1 / (n.node.depth - (node.depth + 1)))
+                uniform = (1 / (n.depth - (node.depth + 1)))
                 normalized = ((self.graph.current_depth - 1) / (cfg['max_depth'] - 1))
                 # Log.debug(f'normalized: {normalized} uniform: {uniform}') # TODO LOW debug
                 new_heuristic = n.find_parent(node).heuristic * normalized * uniform
             else:
                 new_heuristic = n.find_parent(node).heuristic
             # Log.debug(f'heuristic value: {new_heuristic} for {n.node} with pheromone {n.find_parent(node).pheromone}') # TODO LOW debug
-            if (n.node, n.find_parent(node).pheromone, new_heuristic) not in tuple_neighbours:
-                tuple_neighbours.append((n.node, n.find_parent(node).pheromone, new_heuristic))
+            neigh = self.graph.get_node_by_name_and_depth(n.name, n.depth)
+            if (neigh, n.find_parent(node).pheromone, new_heuristic) not in tuple_neighbours:
+                tuple_neighbours.append((neigh, n.find_parent(node).pheromone, new_heuristic))
         # Select node using ant colony selection rule
         current_node = self.aco_select_rule(tuple_neighbours)
         # Select custom attributes using ant colony selection rule
@@ -193,8 +188,8 @@ class ACO:
         # Skip the input node as it's not connected to any previous node
         for node in ant.path[1:]:
             # Use a node from the path to retrieve its corresponding instance from the graph
-            neighbour = next((x for x in current_node.neighbours if x.node.name == node.name and \
-                                                                    x.node.depth == node.depth), None)
+            neighbour = next((x for x in current_node.neighbours if x.name == node.name and \
+                                                                    x.depth == node.depth), None)
 
             # If the path was closed using complete_path method, ignore the rest of the path
             if neighbour is None:
@@ -208,7 +203,8 @@ class ACO:
             )
 
             # Update attribute's pheromone values
-            for attribute in neighbour.node.attributes:
+            neigh = self.graph.get_node_by_name_and_depth(neighbour.name, neighbour.depth)
+            for attribute in neigh.attributes:
                 # Find what attribute value was used for node
                 attribute_value = getattr(node, attribute.name)
                 # Retrieve pheromone for that value
@@ -220,7 +216,7 @@ class ACO:
                 )
 
             # Advance the current node
-            current_node = neighbour.node
+            current_node = neigh
 
     def local_update(self, old_value: float, cost):
         """Performs local pheromone update."""
@@ -326,7 +322,6 @@ class Graph:
         self.current_depth = current_depth
         self.input_node = self.get_node(Node.create_using_type('Input', 0))
         self.increase_depth()
-        self.nodes_count = 0 # TODO LOW debug
 
     def get_node(self, node: Node):
         """Tries to retrieve a given node from the graph. If the node does not
@@ -343,6 +338,9 @@ class Graph:
 
         # If the node already exists return it, otherwise add it to the topology first
         return self.topology[node.depth].setdefault(node.name, node)
+
+    def get_node_by_name_and_depth(self, name: str, depth: int) -> Node:
+        return self.topology[depth].get(name)
 
     def increase_depth(self):
         """Increases the depth of the graph."""
@@ -363,9 +361,10 @@ class Graph:
         current_node = self.input_node
         path = [current_node.create_deepcopy()]
         while current_node.depth < self.current_depth: 
-
-            # Log.debug(f'CURRENT_NODE: {current_node}') # TODO LOW debug
-
+            Log.debug(f'CURRENT_NODE: {current_node}') # TODO LOW debug
+            print(getsize(current_node))
+            print(getsize(self.topology), self.topology)
+            
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
                 Log.warning('OutputNode reached before complete_path')
@@ -401,8 +400,7 @@ class Graph:
         # it hasn't been expanded
         # if the node hasn't been residualy expanded during the same depth (otherwise create duplicates)
         # if the node is eligible for new residual connections
-        if  current_node.is_expanded is False or \
-            (self.current_depth - current_node.depth <= cfg['residual_depth'] + 1 and \
+        if  (self.current_depth - current_node.depth <= cfg['residual_depth'] + 1 and \
                 current_node.last_checked != self.current_depth):
 
             #list of nodes to parse
@@ -419,8 +417,7 @@ class Graph:
 
                 for node in nodes: # TODO LOW if skip more than 1 layer, need to be optimized,
                     if type(node) == NeighbourNode:
-                        node = node.node
-
+                        node = self.get_node_by_name_and_depth(node.name, node.depth)
                     available_transitions = node.available_transitions
                     for (transition_name, heuristic_value) in available_transitions:
                         neighbour_node = self.get_node(Node(transition_name, residual_depth))
@@ -432,13 +429,11 @@ class Graph:
                         if not current_node.find_node_into_neighbours(neighbour, heuristic_value):
                             neighbour.parents.append(ParentNode(current_node, heuristic=heuristic_value)) #TODO HIGH review heuristic_value for skip-connections
                             current_node.neighbours.append(neighbour)
-                    
-                    temp_nodes.extend([n.node for n in node.neighbours])
+                    temp_nodes.extend([n for n in node.neighbours])
                 nodes = temp_nodes
 
             #last time the node has been checked for residual connections
             current_node.last_checked = self.current_depth
-            current_node.is_expanded = True
 
             # neighbours_str = "" # TODO LOW debug
             # for n in current_node.neighbours:
@@ -507,15 +502,3 @@ class Graph:
                 Log.header("Layer %d" % (idx + 1))
                 Log.info('\n'.join(info))
         Log.header("PHEROMONE END", type="RED")
-
-    def count_nodes(self, node): # TODO LOW debug
-        nodes = [n.node for n in node.neighbours]
-        if not nodes:
-            self.nodes_count += 1
-            return
-        for n in nodes:
-            self.count_nodes(n)
-        self.nodes_count += 1
-
-    def reset_nodes_count(self): # TODO LOW debug
-        self.nodes_count = 0

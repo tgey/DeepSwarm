@@ -2,10 +2,20 @@
 # Licensed under MIT License
 
 import context
-import tensorflow as tf
+import warnings  
+with warnings.catch_warnings():  
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import tensorflow as tf
+
+import os, sys
+import logging
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
 from deepswarm.backends import Dataset, TFKerasBackend
 from deepswarm.deepswarm import DeepSwarm
+from deepswarm.log import Log
 
 # Load CIFAR-10 dataset
 cifar10 = tf.keras.datasets.cifar10
@@ -26,7 +36,12 @@ backend = TFKerasBackend(dataset=dataset)
 # Create DeepSwarm object responsible for optimization
 deepswarm = DeepSwarm(backend=backend)
 # Find the topology for a given dataset
-topology = deepswarm.find_topology()
+try:
+    topology = deepswarm.find_topology()
+except:
+    print(f'{sys.exc_info()} occured')
+    Log.error(f'{sys.exc_info()} - {sys.exc_info()[2]} occured')
+    exit()
 # Evaluate discovered topology
 deepswarm.evaluate_topology(topology)
 # Train topology on augmented data for additional 50 epochs

@@ -19,7 +19,6 @@ class Node:
         self.name = name
         self.depth = depth
         self.neighbours = []
-        self.is_expanded = False
         self.last_checked = depth
         self.type = nodes[self.name]['type']
         self.setup_attributes()
@@ -99,7 +98,8 @@ class Node:
 
     def find_node_into_neighbours(self, neighbour_node, heuristic) -> bool:
         for neighbour in self.neighbours:
-            if neighbour.node == neighbour_node.node and neighbour.find_parent(self).heuristic == heuristic:
+            if neighbour.name == neighbour_node.name and neighbour.depth == neighbour_node.depth \
+                and neighbour.find_parent(self).heuristic == heuristic:
                 return True
         return False
 
@@ -125,6 +125,10 @@ class Node:
 
 
 class ParentNode:
+    """Class responsible for encapsulating NeighbourNode's parent."""
+    
+    __slots__ = ['id', 'heuristic', 'pheromone']
+
     def __init__(self, node: Node, heuristic: float, pheromone: float = cfg['aco']['pheromone']['start']):
         self.id = id(node)
         self.heuristic = heuristic
@@ -135,9 +139,12 @@ class ParentNode:
 
 class NeighbourNode:
     """Class responsible for encapsulating Node's neighbour."""
+    
+    __slots__ = ['node', 'name', 'depth', 'parents']
 
     def __init__(self, node: Node):
-        self.node = node
+        self.name = node.name
+        self.depth = node.depth
         self.parents = []
 
     def find_parent(self, node: Node) -> ParentNode:
