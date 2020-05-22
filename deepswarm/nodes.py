@@ -19,6 +19,7 @@ class Node:
         self.name = name
         self.depth = depth
         self.neighbours = []
+        self.is_expanded = False
         self.last_checked = depth
         self.format = nodes[self.name]['format']
         self.type = nodes[self.name]['type']
@@ -99,8 +100,9 @@ class Node:
 
     def find_node_into_neighbours(self, neighbour_node, heuristic) -> bool:
         for neighbour in self.neighbours:
-            if neighbour.name == neighbour_node.name and neighbour.depth == neighbour_node.depth \
-                and neighbour.find_parent(self).heuristic == heuristic:
+            if neighbour.name == neighbour_node.name and neighbour.depth == neighbour_node.depth:
+                if not neighbour.find_parent(self).heuristic == heuristic: #TODO CRITICAL to correct (if a same parent has 2 different heuristic values for a same node)
+                    neighbour.parents.append(ParentNode(self, heuristic))
                 return True
         return False
 
@@ -128,7 +130,7 @@ class Node:
 class ParentNode:
     """Class responsible for encapsulating NeighbourNode's parent."""
     
-    __slots__ = ['id', 'heuristic', 'pheromone']
+    __slots__ = ['id', 'name', 'depth', 'heuristic', 'pheromone']
 
     def __init__(self, node: Node, heuristic: float, pheromone: float = cfg['aco']['pheromone']['start']):
         self.id = id(node)
@@ -136,7 +138,7 @@ class ParentNode:
         self.pheromone = pheromone
     
     def __str__(self):
-        return f'Parent: {self.id} - p: {self.pheromone} - h: {self.heuristic}'
+        return f'ParentNode -- Parent: {self.id} - phero: {self.pheromone} - heuris: {self.heuristic}'
 
 class NeighbourNode:
     """Class responsible for encapsulating Node's neighbour."""
@@ -147,6 +149,9 @@ class NeighbourNode:
         self.name = node.name
         self.depth = node.depth
         self.parents = []
+
+    def __str__(self):
+        return f'NeighbourNode -- Name: {self.name} - depth: {self.depth}'
 
     def find_parent(self, node: Node) -> ParentNode:
         return next((x for x in self.parents if x.id == id(node)), None)

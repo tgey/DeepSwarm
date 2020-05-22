@@ -361,9 +361,8 @@ class Graph:
         current_node = self.input_node
         path = [current_node.create_deepcopy()]
         while current_node.depth < self.current_depth: 
-            Log.debug(f'CURRENT_NODE: {current_node}') # TODO LOW debug
-            print(getsize(current_node))
-            print(getsize(self.topology), self.topology)
+            Log.debug(f'CURRENT_NODE: {current_node} {id(current_node)}with size {getsize(current_node)}') # TODO LOW debug
+            print(getsize(self.topology))
             
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
@@ -400,8 +399,7 @@ class Graph:
         # it hasn't been expanded
         # if the node hasn't been residualy expanded during the same depth (otherwise create duplicates)
         # if the node is eligible for new residual connections
-        if  (self.current_depth - current_node.depth <= cfg['residual_depth'] + 1 and \
-                current_node.last_checked != self.current_depth):
+        if  (current_node.is_expanded is False or (self.current_depth - current_node.depth <= cfg['residual_depth'] + 1)):
 
             #list of nodes to parse
             #only current_node for plain connections
@@ -423,24 +421,22 @@ class Graph:
                         neighbour_node = self.get_node(Node(transition_name, residual_depth))
                         neighbour = NeighbourNode(node=neighbour_node)
 
-                        if current_node != node :
-                            neighbour.parents.append(ParentNode(node, heuristic=heuristic_value))
-                            node.neighbours.append(neighbour)
+                        if current_node != node:
+                            if not node.find_node_into_neighbours(neighbour, heuristic_value):
+                                neighbour.parents.append(ParentNode(node, heuristic=heuristic_value))
+                                node.neighbours.append(neighbour)
                         if not current_node.find_node_into_neighbours(neighbour, heuristic_value):
                             neighbour.parents.append(ParentNode(current_node, heuristic=heuristic_value)) #TODO HIGH review heuristic_value for skip-connections
                             current_node.neighbours.append(neighbour)
-                    temp_nodes.extend([n for n in node.neighbours])
+                    temp_nodes.extend([n for n in node.neighbours if n.depth == node.depth + 1])
                 nodes = temp_nodes
-
-            #last time the node has been checked for residual connections
-            current_node.last_checked = self.current_depth
-
+            current_node.is_expanded = True
             # neighbours_str = "" # TODO LOW debug
             # for n in current_node.neighbours:
-            #     neighbours_str += f'AFTER {current_node.name} HasNeigh : {str(n.node)}, {n.find_parent(current_node)}\n'
+            #     neighbours_str += f'AFTER {current_node.name} HasNeigh : {str(n)}, {n.find_parent(current_node)}\n'
             #     parents_str = ""
             #     for p in n.parents:
-            #         parents_str += f'Neighbour: {n.node.name} {n.node.depth} - {p}\n'
+            #         parents_str += f'Neighbour: {n.name} {n.depth} - {p}\n'
             #     Log.debug(parents_str)
             # Log.debug(neighbours_str)
         # Return value indicating if the node has neighbours after being expanded
