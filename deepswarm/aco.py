@@ -317,7 +317,7 @@ class Ant:
 class Graph:
     """Class responsible for representing the graph."""
 
-    def __init__(self, current_depth: int = 0):
+    def __init__(self, current_depth: int = cfg['start_depth']):
         self.topology = []
         self.current_depth = current_depth
         self.input_node = self.get_node(Node.create_using_type('Input', 0))

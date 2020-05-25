@@ -278,17 +278,40 @@ class TFKerasBackend(BaseBackend):
         parameters = {'name': str(time.time())}
 
         def f(input):
-            if node.type == 'Residual':
+            if node.type == 'resConv2D':
                 parameters.update({
                     'filters': node.filter_count,
                     'kernel_size': node.kernel_size,
                     'padding': 'same',
                     'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                    # 'activation': self.map_activation(node.activation),
+                })
+                conv1 = originalResNetBlock(**parameters)(input)
+                return self._shortcut(input, conv1)
+            
+            if node.type == 'Conv2DBNRelu':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                    # 'activation': self.map_activation(node.activation),
+                })
+                return Conv2D_BN_ReluBlock(**parameters)(input)
+                # return self._shortcut(input, conv1)
+            
+            if node.type == 'resDense':
+                parameters.update({
+                    'units': node.output_size,
                     'activation': self.map_activation(node.activation),
                 })
-                conv1 = resConv2DBlock(**parameters)(input)
+                dense = DenseBlock(**parameters)(input)
+                return self._shortcut(input, dense)
 
-                return self._shortcut(input, conv1)
         return f
 
         raise Exception(f'Not handled node type: {str(node)}')
