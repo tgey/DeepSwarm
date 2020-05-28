@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras import backend as K
 
 from . import cfg
-from .resnet import *
+from .resnet import full_preactivation_resnetBlock, Conv2D_BN_ReluBlock, denseBlock
 
 class Dataset:
     """Class responsible for encapsulating all the required data."""
@@ -286,12 +286,24 @@ class TFKerasBackend(BaseBackend):
                     'data_format': self.data_format,
                     'kernel_initializer': node.kernel_initializer,
                     'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
-                    # 'activation': self.map_activation(node.activation),
                 })
-                conv1 = originalResNetBlock(**parameters)(input)
+                num_layers = node.layers
+                conv1 = full_preactivation_resnetBlock(num_layers, **parameters)(input)
                 return self._shortcut(input, conv1)
             
-            if node.type == 'Conv2DBNRelu':
+            elif node.type == 'Conv2DBNRelu':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'strides': node.strides,
+                    'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                })
+                return Conv2D_BN_ReluBlock(**parameters)(input)
+            
+            elif node.type == 'resDense':
                 parameters.update({
                     'filters': node.filter_count,
                     'kernel_size': node.kernel_size,
@@ -299,22 +311,15 @@ class TFKerasBackend(BaseBackend):
                     'data_format': self.data_format,
                     'kernel_initializer': node.kernel_initializer,
                     'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
-                    # 'activation': self.map_activation(node.activation),
+                    'rate': node.rate,
                 })
-                return Conv2D_BN_ReluBlock(**parameters)(input)
-                # return self._shortcut(input, conv1)
-            
-            if node.type == 'resDense':
-                parameters.update({
-                    'units': node.output_size,
-                    'activation': self.map_activation(node.activation),
-                })
-                dense = DenseBlock(**parameters)(input)
-                return self._shortcut(input, dense)
+                num_layers = node.layers
+                return denseBlock(num_layers, **parameters)(input)
+
+            else:
+                raise Exception(f'Not handled node type: {str(node)}')
 
         return f
-
-        raise Exception(f'Not handled node type: {str(node)}')
 
     def map_activation(self, activation):
         if activation == "ReLU":

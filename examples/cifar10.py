@@ -16,6 +16,7 @@ logging.getLogger('tensorflow').setLevel(logging.FATAL)
 from deepswarm.backends import Dataset, TFKerasBackend
 from deepswarm.deepswarm import DeepSwarm
 from deepswarm.log import Log
+import traceback
 
 # Load CIFAR-10 dataset
 cifar10 = tf.keras.datasets.cifar10
@@ -41,6 +42,7 @@ try:
 except:
     print(f'{sys.exc_info()} occured')
     Log.error(f'{sys.exc_info()} - {sys.exc_info()[2]} occured')
+    Log.error(f'{traceback.format_exc()}')
     exit()
 # Evaluate discovered topology
 deepswarm.evaluate_topology(topology)

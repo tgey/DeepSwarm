@@ -16,7 +16,7 @@ logging.getLogger('tensorflow').setLevel(logging.FATAL)
 from deepswarm.backends import Dataset, TFKerasBackend
 from deepswarm.deepswarm import DeepSwarm
 from deepswarm.log import Log
-
+import traceback
 # Load MNIST dataset
 mnist = tf.keras.datasets.mnist
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -40,9 +40,11 @@ deepswarm = DeepSwarm(backend=backend)
 try:
     topology = deepswarm.find_topology()
 except:
-    print(f'{sys.exc_info()} occured')
-    Log.error(f'{sys.exc_info()} occured')# Evaluate discovered topology
-deepswarm.evaluate_topology(topology)
+    Log.error(f'{sys.exc_info()} occured')
+    Log.error(f'{traceback.format_exc()}')
+
+# Evaluate discovered topology
+deepswarm.evaluate_topology(topology) 
 # Train topology for additional 30 epochs
 trained_topology = deepswarm.train_topology(topology, 30)
 # Evaluate the final topology
