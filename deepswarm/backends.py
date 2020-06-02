@@ -15,7 +15,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras import backend as K
 
 from . import cfg
-from .resnet import full_preactivation_resnetBlock, Conv2D_BN_ReluBlock, denseBlock
+from .resnet import full_preactivation_resnetBlock, Conv2D_BN_ReluBlock, denseBlock, resneXtBlock
 
 class Dataset:
     """Class responsible for encapsulating all the required data."""
@@ -290,6 +290,20 @@ class TFKerasBackend(BaseBackend):
                 num_layers = node.layers
                 conv1 = full_preactivation_resnetBlock(num_layers, **parameters)(input)
                 return self._shortcut(input, conv1)
+
+            elif node.type == 'resNeXt':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'strides': node.strides,
+                    'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                })
+                cardinality = node.cardinality
+                block = resneXtBlock(cardinality, **parameters)(input)
+                return self._shortcut(input, block)
             
             elif node.type == 'Conv2DBNRelu':
                 parameters.update({

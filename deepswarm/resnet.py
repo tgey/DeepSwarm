@@ -30,7 +30,7 @@ def BottleneckBlock(**parameters):
         })
         return tf.keras.layers.Dropout(**params)(block)
     return f
- 
+
 def BN_Relu_Conv2DBlock(**parameters):
     def f(input):
         activation = _bn_relu(input)
@@ -68,4 +68,20 @@ def Conv2D_BN_ReluBlock(**parameters):
     def f(input):
         conv = tf.keras.layers.Conv2D(**parameters)(input)
         return _bn_relu(conv)
+    return f
+
+def resneXtBlock(cardinality: int, **parameters):
+    def f(input):
+        group_list = []
+        grouped_channels = int(parameters['filters'] / cardinality)
+        parameters['filters'] = grouped_channels
+        
+        for c in range(cardinality):
+            x = tf.keras.layers.Lambda(lambda z: z[:, :, :, c * grouped_channels:(c + 1) * grouped_channels])(input)
+            parameters.update({'name': str(time.time())})
+            conv = tf.keras.layers.Conv2D(**parameters)(x)
+            group_list.append(conv)
+        
+        group_merge = tf.keras.layers.concatenate(copy.copy(group_list), axis=-1)
+        return _bn_relu(group_merge)
     return f
