@@ -10,12 +10,13 @@ logging.getLogger('tensorflow').setLevel(logging.FATAL)
 import tensorflow as tf
 import time
 
+from . import cfg
+from .resnet import *
+from .log import Log
+
 from abc import ABC, abstractmethod
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import backend as K
-
-from . import cfg
-from .resnet import full_preactivation_resnetBlock, Conv2D_BN_ReluBlock, denseBlock, resneXtBlock
 
 class Dataset:
     """Class responsible for encapsulating all the required data."""
@@ -137,33 +138,45 @@ class TFKerasBackend(BaseBackend):
         self.data_format = K.image_data_format()
 
     def generate_model(self, path):
+        # print('GENERATE')
         # Create an input layer
         input_layer = self.create_layer(path[0])
         layer = input_layer
-
+        nb_layers = 1
         # Convert each node to layer and then connect it to the previous layer
         for node in path[1:]:
+            # Log.warning(node)
             if node.format == 'block':
-                layer = self.create_block(node)(layer)
+                x = self.create_block(node)(layer)
+                layer = x[0]
+                nb_layers += x[1]
             else:
                 layer = self.create_layer(node)(layer)
+                nb_layers += 1
+            # Log.warning(layer.name)
 
         # Return generated model
         model = tf.keras.Model(inputs=input_layer, outputs=layer)
         self.compile_model(model)
-        return model
+        return model, nb_layers
 
     def reuse_model(self, old_model, new_model_path, distance):
+        # print('REUSE')
         # Find the starting point of the new model
         starting_point = len(new_model_path) - distance
-        last_layer = old_model.layers[starting_point - 1].output
-
+        x = self.generate_model(new_model_path[:starting_point])[1]
+        last_layer = old_model.layers[x - 1].output
+        Log.debug((starting_point, x, last_layer))
+        for x in new_model_path[:starting_point]:
+            Log.debug(str(x))
         # Append layers from the new model to the old model
         for node in new_model_path[starting_point:]:
+            # Log.warning(node)
             if node.format == 'block':
-                last_layer = self.create_block(node)(last_layer)
+                last_layer = self.create_block(node)(last_layer)[0]
             else:
                 last_layer = self.create_layer(node)(last_layer)
+            # Log.warning(last_layer.name)
 
         # Return new model
         model = tf.keras.Model(inputs=old_model.inputs, outputs=last_layer)
@@ -256,6 +269,7 @@ class TFKerasBackend(BaseBackend):
         # Expand channels of shortcut to match residual.
         # Stride appropriately to match residual (width, height)
         # Should be int if network architecture is correctly configured.
+        layers = 0
         input_shape = K.int_shape(input)
         residual_shape = K.int_shape(residual)
         stride_width = int(round(input_shape[1] / residual_shape[1]))
@@ -270,13 +284,13 @@ class TFKerasBackend(BaseBackend):
                             strides=(stride_width, stride_height),
                             padding="valid",
                             kernel_initializer="he_normal",
+                            name=str(time.time()),
                             kernel_regularizer=tf.keras.regularizers.l2(0.0001))(input)
-
-        return tf.keras.layers.add([shortcut, residual])
+            layers += 1
+        return tf.keras.layers.add([shortcut, residual]), (layers + 1)
 
     def create_block(self, node):
         parameters = {'name': str(time.time())}
-
         def f(input):
             if node.type == 'resConv2D':
                 parameters.update({
@@ -288,8 +302,11 @@ class TFKerasBackend(BaseBackend):
                     'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
                 })
                 num_layers = node.layers
-                conv1 = full_preactivation_resnetBlock(num_layers, **parameters)(input)
-                return self._shortcut(input, conv1)
+                # conv1, layers = full_preactivation_resnetBlock(num_layers, **parameters)(input)
+                # resconv, shortcut_layers = self._shortcut(input, conv1)
+                # return resconv, (layers + shortcut_layers)
+                resconv, layers = cspResnetBlock(num_layers, **parameters)(input)
+                return resconv, layers
 
             elif node.type == 'resNeXt':
                 parameters.update({
@@ -302,8 +319,9 @@ class TFKerasBackend(BaseBackend):
                     'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
                 })
                 cardinality = node.cardinality
-                block = resneXtBlock(cardinality, **parameters)(input)
-                return self._shortcut(input, block)
+                block, layers = resneXtBlock(cardinality, **parameters)(input)
+                resblock, shortcut_layers = self._shortcut(input, block)
+                return resblock, (layers + shortcut_layers)
             
             elif node.type == 'Conv2DBNRelu':
                 parameters.update({
@@ -315,7 +333,8 @@ class TFKerasBackend(BaseBackend):
                     'kernel_initializer': node.kernel_initializer,
                     'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
                 })
-                return Conv2D_BN_ReluBlock(**parameters)(input)
+                block, layers = Conv2D_BN_ReluBlock(**parameters)(input)
+                return block, layers
             
             elif node.type == 'resDense':
                 parameters.update({
@@ -328,8 +347,9 @@ class TFKerasBackend(BaseBackend):
                     'rate': node.rate,
                 })
                 num_layers = node.layers
-                return denseBlock(num_layers, **parameters)(input)
-
+                # block, layers = denseBlock(num_layers, **parameters)(input)
+                block, layers =  cspDenseBlock(num_layers, **parameters)(input)
+                return block, layers
             else:
                 raise Exception(f'Not handled node type: {str(node)}')
 

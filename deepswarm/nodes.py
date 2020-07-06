@@ -23,6 +23,8 @@ class Node:
         self.last_checked = depth
         self.format = nodes[self.name]['format']
         self.type = nodes[self.name]['type']
+        if self.format == 'block':
+            self.components = nodes[self.name]['components']
         self.setup_attributes()
         self.setup_transitions()
         self.select_random_attributes()

@@ -272,16 +272,15 @@ class Ant:
         existing_model, existing_model_hash = storage.load_model(backend, path_hashes, self.path)
         if existing_model is None:
             # Generate model
-            new_model = backend.generate_model(self.path)
+            new_model = backend.generate_model(self.path)[0]
         else:
             # Re-use model
             new_model = existing_model
 
         #TODO LOW debug layers shape
-        # layers = ""
-        # for i in range(len(self.path)):
-        #     layer = new_model.get_layer(index=i)
-        #     layers += f'{str(layer)}: {str(layer.input_shape)} ---> {str(layer.output_shape)} \n'
+        layers = ""
+        for layer in new_model.layers:
+            layers += f'{str(layer)}: {str(layer.input_shape)} ---> {str(layer.output_shape)} \n'
         # Log.debug(layers)
 
         # Train model
@@ -361,8 +360,7 @@ class Graph:
         current_node = self.input_node
         path = [current_node.create_deepcopy()]
         while current_node.depth < self.current_depth: 
-            Log.debug(f'CURRENT_NODE: {current_node} {id(current_node)}with size {getsize(current_node)}') # TODO LOW debug
-            print(getsize(self.topology))
+            # print(getsize(self.topology))
             
             # If the node doesn't have any neighbours stop expanding the path
             if not self.has_neighbours(current_node, current_node.depth):
@@ -370,6 +368,7 @@ class Graph:
                 break
             # Select node using given rule
             current_node = select_rule(current_node)
+            # Log.debug(f'CURRENT_NODE: {current_node} with size {getsize(current_node)}') # TODO LOW debug
             # Add only the copy of the node, so that original stays unmodified
             path.append(current_node.create_deepcopy())
         completed_path = self.complete_path(path)

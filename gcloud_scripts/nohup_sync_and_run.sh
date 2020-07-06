@@ -35,6 +35,8 @@ do
         gcloud compute scp --recurse deepswarm/ $INSTANCE_NAME:~ --zone=$ZONE_NAME
 
         gcloud compute scp gcloud_scripts/instance_run.sh $INSTANCE_NAME:~ --zone=$ZONE_NAME
+        gcloud compute scp gcloud_scripts/init_instance.sh $INSTANCE_NAME:~ --zone=$ZONE_NAME
+
         gcloud compute scp gcloud_scripts/google_drive_sync.py $INSTANCE_NAME:~ --zone=$ZONE_NAME
         gcloud compute scp client_secrets.json $INSTANCE_NAME:~ --zone=$ZONE_NAME
         gcloud compute scp credentials.txt $INSTANCE_NAME:~ --zone=$ZONE_NAME
@@ -46,7 +48,7 @@ do
 
         # gcloud compute ssh --zone=$ZONE_NAME $INSTANCE_NAME
         # nohup gcloud compute ssh --zone=$ZONE_NAME $INSTANCE_NAME --command "$COMMAND" &
-        nohup gcloud compute ssh --zone=$ZONE_NAME $INSTANCE_NAME --command "chmod +x instance_run.sh && ./instance_run.sh $1 $2" &
+        nohup gcloud compute ssh --zone=$ZONE_NAME $INSTANCE_NAME --command "chmod +x instance_run.sh && ./instance_run.sh $1 $2 $4" &
         echo "VM: commands executed"
         
         notify-send "DeepSwarm: Nohup model launched"

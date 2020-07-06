@@ -40,10 +40,8 @@ deepswarm = DeepSwarm(backend=backend)
 try:
     topology = deepswarm.find_topology()
 except:
-    print(f'{sys.exc_info()} occured')
-    Log.error(f'{sys.exc_info()} - {sys.exc_info()[2]} occured')
+    Log.error(f'{sys.exc_info()} occured')
     Log.error(f'{traceback.format_exc()}')
-    exit()
 # Evaluate discovered topology
 deepswarm.evaluate_topology(topology)
 # Train topology on augmented data for additional 50 epochs
