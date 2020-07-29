@@ -7,7 +7,7 @@
 </p>
 
 
-# DeepSwarm [![](https://img.shields.io/badge/python-3.6+-brightgreen.svg)](https://www.python.org/downloads/release/python-360/) [![](https://img.shields.io/badge/TensorFlow-1.13.1-brightgreen.svg)](https://www.tensorflow.org/)
+# DeepSwarm [![](https://img.shields.io/badge/python-3.6+-brightgreen.svg)](https://www.python.org/downloads/release/python-360/) [![](https://img.shields.io/badge/TensorFlow-1.14.0-brightgreen.svg)](https://www.tensorflow.org/)
 
 DeepSwarm is an open-source library which uses Ant Colony Optimization to tackle the neural architecture search problem. The main goal of DeepSwarm is to automate one of the most tedious and daunting tasks, so people can spend more of their time on more important and interesting things. DeepSwarm offers a powerful configuration system which allows you to fine-tune the search space to your needs.
 
@@ -27,6 +27,7 @@ trained_topology = deepswarm.train_topology(topology, 50)
 
 ## Installation 💾
 
+### For Deepswarm 1 only
 1. Install the package
 
    ```sh
@@ -37,7 +38,30 @@ trained_topology = deepswarm.train_topology(topology, 50)
    ```sh
    pip install tensorflow-gpu==1.13.1
    ```
-   
+
+### For Deepswarm 1 & 2
+
+1. Install the repository
+
+   ```sh
+    git clone https://github.com/tgey/DeepSwarm.git 
+    ```
+   ```sh
+    cd Deepswarm
+    ``` 
+  
+2. Install Python dependencies needed in Deepswarm (including implemented backends)
+
+    For GPU runs
+
+    ```sh
+    pip install -r requirements-gpu.txt
+    ```
+    For CPU runs
+    ```sh
+    pip install -r requirements-cpu.txt
+    ```
+
 ## Usage 🕹
 
 1. Create a new file containing the example code
@@ -71,13 +95,17 @@ trained_topology = deepswarm.train_topology(topology, 50)
 | Pool2D | **pool_type**: defines the types of allowed pooling nodes. Allowed values are: max (max pooling) and average (average pooling). <br> **pool_size**: defines the allowed pooling window sizes. For example, if it is set to [2], then only 2x2 pooling windows will be used. <br> **stride**: defines the allowed stride sizes. |
 | Flatten | - |
 | Dense | **output_size**: defines the allowed output space dimensionality. <br> **activation**: defines what activation functions can be used. Allowed values are: ReLU, ELU, LeakyReLU, Sigmoid and Softmax. |
+|ResNet Block| **layers**: defines the number of layers a resNet block contains. <br> **filter_count**: defines how many filters can be used. <br> **kernel_size**: defines what size kernels can be used. For example, if it is set to [1, 3], then only 1x1 and 3x3 kernels will be used. <br> **kernel_initializer**: Defines which function to use for initialising the weights.|
+|DensetNet Block| **layers**: defines the number of bottleneck blcoks a DenseNet block contains. <br> **filter_count**: defines how many filters can be used. <br> **kernel_size**: defines what size kernels can be used. For example, if it is set to [1, 3], then only 1x1 and 3x3 kernels will be used. <br> **kernel_initializer**: Defines which function to use for initialising the weights. <br> **rate**: defines the allowed dropout rates. For example, if it is set to [0.1, 0.3], then either 10% or 30% of input units will be dropped.|
 | Output | **output_size**: defines the output size (how many different classes to classify). <br> **activation**: defines what activation functions can be used. Allowed value are ReLU, ELU, LeakyReLU, Sigmoid and Softmax. |
 
 | Setting        | Description |
 | :------------- |:-------------|
 | save_folder | Specifies the name of the folder which should be used to load the backup. If not specified the search will start from zero. |
 | metrics | Specifies what metrics should algorithm use to evaluate the models. Currently available options are: accuracy and loss. |
+| start_depth | Specifies the start depth of the graph. The search is performed from that depth. |
 | max_depth | Specifies the maximum allowed network depth (how deeply the graph can be expanded). The search is performed until the maximum depth is reached. However, it does not mean that the depth of the best architecture will be equal to the max_depth. |
+| residual_depth | Specifies how many depth an ant can skip during the search process. By default, the residual_depth is set to 0. For example, an ant a depth 3 could select a node a depth 5 and skip depth 4 if the residual_depth is equal or greater than 1.|
 | reuse_patience | Specifies the maximum number of times that weights can be reused without improving the cost. For example, if it is set to 1 it means that when some model X reuses weights from model Y and model X cost did not improve compared to model Y, next time instead of reusing model Y weights, new random weights will be generated.|
 | start | Specifies the starting pheromone value for all the new connections. |
 | decay | Specifies the local pheromone decay rate in percentage. For example, if it is set to 0.1 it means that during the local pheromone update the pheromone value will be decreased by 10%. |
@@ -95,9 +123,10 @@ trained_topology = deepswarm.train_topology(topology, 50)
 ## Future goals 🌟
 
 - [ ] Add a node which can combine the input from the two previous nodes.
-- [ ] Add a node which can skip the depth n in order to connect to the node in depth n+1.
 - [ ] Delete the models which are not referenced anymore.
 - [ ] Add an option to assemble the best n models into one model.
+- [ ] Add new node types
+- [ ] Implement new backends
 - [ ] Add functionality to reuse the weights from the non-continues blocks, i.e. take the best weights for depth n-1 from one model and then take the best weights for depth n+1 from another model.
 
 ## Citation 🖋
