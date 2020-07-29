@@ -2,15 +2,21 @@
 # Licensed under MIT License
 
 import os
+import logging
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
+
 import tensorflow as tf
 import time
+
+from . import cfg
+from .resnet import *
+from .log import Log
 
 from abc import ABC, abstractmethod
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import backend as K
-
-from . import cfg
-
 
 class Dataset:
     """Class responsible for encapsulating all the required data."""
@@ -132,27 +138,45 @@ class TFKerasBackend(BaseBackend):
         self.data_format = K.image_data_format()
 
     def generate_model(self, path):
+        # print('GENERATE')
         # Create an input layer
         input_layer = self.create_layer(path[0])
         layer = input_layer
-
+        nb_layers = 1
         # Convert each node to layer and then connect it to the previous layer
         for node in path[1:]:
-            layer = self.create_layer(node)(layer)
+            # Log.warning(node)
+            if node.format == 'block':
+                x = self.create_block(node)(layer)
+                layer = x[0]
+                nb_layers += x[1]
+            else:
+                layer = self.create_layer(node)(layer)
+                nb_layers += 1
+            # Log.warning(layer.name)
 
         # Return generated model
         model = tf.keras.Model(inputs=input_layer, outputs=layer)
         self.compile_model(model)
-        return model
+        return model, nb_layers
 
     def reuse_model(self, old_model, new_model_path, distance):
+        # print('REUSE')
         # Find the starting point of the new model
         starting_point = len(new_model_path) - distance
-        last_layer = old_model.layers[starting_point - 1].output
-
+        x = self.generate_model(new_model_path[:starting_point])[1]
+        last_layer = old_model.layers[x - 1].output
+        Log.debug((starting_point, x, last_layer))
+        for x in new_model_path[:starting_point]:
+            Log.debug(str(x))
         # Append layers from the new model to the old model
         for node in new_model_path[starting_point:]:
-            last_layer = self.create_layer(node)(last_layer)
+            # Log.warning(node)
+            if node.format == 'block':
+                last_layer = self.create_block(node)(last_layer)[0]
+            else:
+                last_layer = self.create_layer(node)(last_layer)
+            # Log.warning(last_layer.name)
 
         # Return new model
         model = tf.keras.Model(inputs=old_model.inputs, outputs=last_layer)
@@ -231,7 +255,105 @@ class TFKerasBackend(BaseBackend):
             })
             return tf.keras.layers.Dense(**parameters)
 
-        raise Exception('Not handled node type: %s' % str(node))
+        if node.type == "Skip":
+            parameters.update({
+                'function': lambda x: x
+            })
+            return tf.keras.layers.Lambda(**parameters)
+
+        raise Exception(f'Not handled node type: {str(node)}')
+
+    def _shortcut(self, input, residual):
+        """Adds a shortcut between input and residual block and merges them with "sum"
+        """
+        # Expand channels of shortcut to match residual.
+        # Stride appropriately to match residual (width, height)
+        # Should be int if network architecture is correctly configured.
+        layers = 0
+        input_shape = K.int_shape(input)
+        residual_shape = K.int_shape(residual)
+        stride_width = int(round(input_shape[1] / residual_shape[1]))
+        stride_height = int(round(input_shape[2] / residual_shape[2]))
+        equal_channels = input_shape[3] == residual_shape[3]
+
+        shortcut = input
+        # 1 X 1 conv if shape is different. Else identity.
+        if stride_width > 1 or stride_height > 1 or not equal_channels:
+            shortcut = tf.keras.layers.Conv2D(filters=residual_shape[3],
+                            kernel_size=(1, 1),
+                            strides=(stride_width, stride_height),
+                            padding="valid",
+                            kernel_initializer="he_normal",
+                            name=str(time.time()),
+                            kernel_regularizer=tf.keras.regularizers.l2(0.0001))(input)
+            layers += 1
+        return tf.keras.layers.add([shortcut, residual]), (layers + 1)
+
+    def create_block(self, node):
+        parameters = {'name': str(time.time())}
+        def f(input):
+            if node.type == 'resConv2D':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                })
+                num_layers = node.layers
+                # conv1, layers = full_preactivation_resnetBlock(num_layers, **parameters)(input)
+                # resconv, shortcut_layers = self._shortcut(input, conv1)
+                # return resconv, (layers + shortcut_layers)
+                resconv, layers = cspResnetBlock(num_layers, **parameters)(input)
+                return resconv, layers
+
+            elif node.type == 'resNeXt':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'strides': node.strides,
+                    'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                })
+                cardinality = node.cardinality
+                block, layers = resneXtBlock(cardinality, **parameters)(input)
+                resblock, shortcut_layers = self._shortcut(input, block)
+                return resblock, (layers + shortcut_layers)
+            
+            elif node.type == 'Conv2DBNRelu':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'strides': node.strides,
+                    'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                })
+                block, layers = Conv2D_BN_ReluBlock(**parameters)(input)
+                return block, layers
+            
+            elif node.type == 'resDense':
+                parameters.update({
+                    'filters': node.filter_count,
+                    'kernel_size': node.kernel_size,
+                    'padding': 'same',
+                    'data_format': self.data_format,
+                    'kernel_initializer': node.kernel_initializer,
+                    'kernel_regularizer': tf.keras.regularizers.l2(1e-4),
+                    'rate': node.rate,
+                })
+                num_layers = node.layers
+                # block, layers = denseBlock(num_layers, **parameters)(input)
+                block, layers =  cspDenseBlock(num_layers, **parameters)(input)
+                return block, layers
+            else:
+                raise Exception(f'Not handled node type: {str(node)}')
+
+        return f
 
     def map_activation(self, activation):
         if activation == "ReLU":
@@ -244,7 +366,7 @@ class TFKerasBackend(BaseBackend):
             return tf.keras.activations.sigmoid
         if activation == "Softmax":
             return tf.keras.activations.softmax
-        raise Exception('Not handled activation: %s' % str(activation))
+        raise Exception(f'Not handled activation: {str(activation)}')
 
     def train_model(self, model):
         # Create a checkpoint path
@@ -343,7 +465,7 @@ class TFKerasBackend(BaseBackend):
         return (loss, accuracy)
 
     def save_model(self, model, path):
-        model.save(path)
+        model.save(str(path))
         self.free_gpu()
 
     def load_model(self, path):

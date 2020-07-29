@@ -6,50 +6,44 @@ import random
 
 from . import cfg, nodes
 
-
 class NodeAttribute:
     """Class responsible for encapsulating Node's attribute."""
 
-    def __init__(self, name, options):
+    def __init__(self, name: str, options):
         self.name = name
         self.dict = {option: cfg['aco']['pheromone']['start'] for option in options}
 
-
-class NeighbourNode:
-    """Class responsible for encapsulating Node's neighbour."""
-
-    def __init__(self, node, heuristic, pheromone=cfg['aco']['pheromone']['start']):
-        self.node = node
-        self.heuristic = heuristic
-        self.pheromone = pheromone
-
-
 class Node:
     """Class responsible for representing Node."""
-
-    def __init__(self, name):
+    def __init__(self, name: str, depth: int):
         self.name = name
+        self.depth = depth
         self.neighbours = []
         self.is_expanded = False
+        self.last_checked = depth
+        self.format = nodes[self.name]['format']
         self.type = nodes[self.name]['type']
+        if self.format == 'block':
+            self.components = nodes[self.name]['components']
         self.setup_attributes()
         self.setup_transitions()
         self.select_random_attributes()
 
     @classmethod
-    def create_using_type(cls, type):
+    def create_using_type(cls, type: str, depth: int):
         """Create Node's instance using given type.
 
         Args:
             type (str): type defined in .yaml file.
+            depth (int): depth of the node in the graph
         Returns:
             Node's instance.
         """
 
         for node in nodes:
             if nodes[node]['type'] == type:
-                return cls(node)
-        raise Exception('Type does not exist: %s' % str(type))
+                return cls(node, depth)
+        raise Exception(f'Type does not exist: {str(type)}')
 
     def setup_attributes(self):
         """Adds attributes from the settings file."""
@@ -106,6 +100,14 @@ class Node:
 
         self.select_attributes(lambda dict: random.choice(list(dict.keys())))
 
+    def find_node_into_neighbours(self, neighbour_node, heuristic) -> bool:
+        for neighbour in self.neighbours:
+            if neighbour.name == neighbour_node.name and neighbour.depth == neighbour_node.depth:
+                if not neighbour.find_parent(self).heuristic == heuristic: #TODO CRITICAL to correct (if a same parent has 2 different heuristic values for a same node)
+                    neighbour.parents.append(ParentNode(self, heuristic))
+                return True
+        return False
+
     def create_deepcopy(self):
         """Returns a newly created copy of Node object."""
 
@@ -124,4 +126,34 @@ class Node:
 
     def __str__(self):
         attributes = ', '.join([a.name + ":" + str(getattr(self, a.name)) for a in self.attributes])
-        return self.name + "(" + attributes + ")"
+        return f'{self.name} ({attributes}) - depth: {str(self.depth)}'
+
+
+class ParentNode:
+    """Class responsible for encapsulating NeighbourNode's parent."""
+    
+    __slots__ = ['id', 'name', 'depth', 'heuristic', 'pheromone']
+
+    def __init__(self, node: Node, heuristic: float, pheromone: float = cfg['aco']['pheromone']['start']):
+        self.id = id(node)
+        self.heuristic = heuristic
+        self.pheromone = pheromone
+    
+    def __str__(self):
+        return f'ParentNode -- Parent: {self.id} - phero: {self.pheromone} - heuris: {self.heuristic}'
+
+class NeighbourNode:
+    """Class responsible for encapsulating Node's neighbour."""
+    
+    __slots__ = ['node', 'name', 'depth', 'parents']
+
+    def __init__(self, node: Node):
+        self.name = node.name
+        self.depth = node.depth
+        self.parents = []
+
+    def __str__(self):
+        return f'NeighbourNode -- Name: {self.name} - depth: {self.depth}'
+
+    def find_parent(self, node: Node) -> ParentNode:
+        return next((x for x in self.parents if x.id == id(node)), None)

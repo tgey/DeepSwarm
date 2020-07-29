@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="deepswarm",
-    version="0.0.10",
-    author="Edvinas Byla",
-    author_email="edvinasbyla@gmail.com",
+    name="deepswarm2",
+    version="0.0.1",
+    author="Thomas Gey",
+    author_email="thomas.gey.dev@gmail.com",
     description="Neural Architecture Search Powered by Swarm Intelligence",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Pattio/DeepSwarm",
+    url="https://github.com/tgey/DeepSwarm",
     packages=setuptools.find_packages(),
     package_data={'deepswarm': ['../settings/default.yaml']},
     install_requires=[

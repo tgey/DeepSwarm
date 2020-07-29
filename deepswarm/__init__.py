@@ -51,7 +51,7 @@ if not settings_file_path.exists():
     settings_file_path = Path(settings_directory, 'default').with_suffix('.yaml')
 
 # Read settings file
-with open(settings_file_path, 'r') as settings_file:
+with open(str(settings_file_path), 'r') as settings_file:
     settings = load(settings_file, Loader=Loader)
 
 # Add script name to settings, so it's added to the log

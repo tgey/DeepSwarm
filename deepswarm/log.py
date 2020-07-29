@@ -107,5 +107,6 @@ class FileFormatter(logging.Formatter):
     def format(self, record):
         message = super(FileFormatter, self).format(record)
         plain_message = self.plain(message)
-        separator = '=' * 80
-        return ''.join((separator, "\n", plain_message, "\n", separator))
+        return plain_message
+        # separator = '=' * 80
+        # return ''.join((separator, "\n", plain_message, "\n", separator))

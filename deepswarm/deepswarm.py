@@ -6,7 +6,6 @@ from .aco import ACO
 from .log import Log
 from .storage import Storage
 
-
 class DeepSwarm:
     """Class responsible for providing user facing interface."""
 
@@ -46,7 +45,7 @@ class DeepSwarm:
         best_model = self.storage.load_specified_model(self.backend, best_ant.path_hash)
         return best_model
 
-    def train_topology(self, model, epochs, augment={}):
+    def train_topology(self, model, epochs: int, augment={}):
         """Trains given neural network topology for a specified number of epochs.
 
         Args:

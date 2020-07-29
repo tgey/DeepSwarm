@@ -2,11 +2,21 @@
 # Licensed under MIT License
 
 import context
-import tensorflow as tf
+import warnings  
+with warnings.catch_warnings():  
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import tensorflow as tf
+
+import os, sys
+import logging
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
 from deepswarm.backends import Dataset, TFKerasBackend
 from deepswarm.deepswarm import DeepSwarm
-
+from deepswarm.log import Log
+import traceback
 # Load MNIST dataset
 mnist = tf.keras.datasets.mnist
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -27,9 +37,14 @@ backend = TFKerasBackend(dataset=normalized_dataset)
 # Create DeepSwarm object responsible for optimization
 deepswarm = DeepSwarm(backend=backend)
 # Find the topology for a given dataset
-topology = deepswarm.find_topology()
+try:
+    topology = deepswarm.find_topology()
+except:
+    Log.error(f'{sys.exc_info()} occured')
+    Log.error(f'{traceback.format_exc()}')
+
 # Evaluate discovered topology
-deepswarm.evaluate_topology(topology)
+deepswarm.evaluate_topology(topology) 
 # Train topology for additional 30 epochs
 trained_topology = deepswarm.train_topology(topology, 30)
 # Evaluate the final topology

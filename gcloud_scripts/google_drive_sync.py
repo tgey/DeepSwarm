@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, shutil
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
@@ -57,4 +57,6 @@ if __name__ == '__main__':
     path = 'saves/' + models[-1] + '/deepswarm.log'
     send_data_to_drive(path)
     send_slack_notification(models[-1])
+    for model in models[:-5]:
+        shutil.rmtree(f'saves/{str(model)}')
     
