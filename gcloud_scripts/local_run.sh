@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python3 -m pip install -r requierements-dev-cpu.txt
+python3 -m pip install -r requirements-dev-cpu.txt
 
 for v in $(seq 1 $3)
 do
