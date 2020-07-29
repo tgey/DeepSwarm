@@ -46,8 +46,6 @@ do
         gcloud compute scp .env $INSTANCE_NAME:~ --zone=$ZONE_NAME
         echo "VM: data transfered from local to instance"
 
-        # gcloud compute ssh --zone=$ZONE_NAME $INSTANCE_NAME
-        # nohup gcloud compute ssh --zone=$ZONE_NAME $INSTANCE_NAME --command "$COMMAND" &
         nohup gcloud compute ssh --zone=$ZONE_NAME $INSTANCE_NAME --command "chmod +x instance_run.sh && ./instance_run.sh $1 $2 $4" &
         echo "VM: commands executed"
         

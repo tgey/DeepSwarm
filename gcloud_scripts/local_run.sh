@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# python3 -m pip install -r requierements-dev-gpu.txt
+python3 -m pip install -r requierements-dev-cpu.txt
 
-python3 $1 -s $2
-python3 $1 -s $2
-python3 $1 -s $2
-# python3 $1 -s $2
-# python3 $1 -s $2
+for v in $(seq 1 $3)
+do
+    python3 $1 -s $2
+done
 
 notify-send "TESTS FINISHED"
