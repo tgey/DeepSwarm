@@ -1,6 +1,7 @@
 DeepSwarm:
     save_folder:
     metrics: accuracy
+    start_depth: 0
     max_depth: 15
     residual_depth: 2
     reuse_patience: 1

@@ -151,7 +151,10 @@ class TFKerasBackend(BaseBackend):
                 layer = x[0]
                 nb_layers += x[1]
             else:
-                layer = self.create_layer(node)(layer)
+                if node.type == 'Dropout':
+                    layer = self.create_layer(node)(layer, training=True)
+                else:
+                    layer = self.create_layer(node)(layer)
                 nb_layers += 1
             # Log.warning(layer.name)
 
@@ -175,7 +178,10 @@ class TFKerasBackend(BaseBackend):
             if node.format == 'block':
                 last_layer = self.create_block(node)(last_layer)[0]
             else:
-                last_layer = self.create_layer(node)(last_layer)
+                if node.type == 'Dropout':
+                    last_layer = self.create_layer(node)(last_layer, training=True)
+                else:
+                    last_layer = self.create_layer(node)(last_layer)
             # Log.warning(last_layer.name)
 
         # Return new model

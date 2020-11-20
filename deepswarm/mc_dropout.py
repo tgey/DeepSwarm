@@ -8,7 +8,6 @@ from .log import Log
 import tqdm
 
 def mc_dropout_class_prediction(model: tf.keras.Model, image: np.ndarray, label: int ,mc_samples: int) -> np.ndarray:
-    Log.enable()
     image = image[np.newaxis]
     
     output_shape = model.layers[-1].output_shape
